@@ -1,0 +1,280 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// 枚举定义
+// ============================================================
+
+enum UserRole {
+  ADMIN
+  CUSTOMER
+}
+
+enum UserStatus {
+  PENDING   // 待审核
+  ACTIVE    // 已激活
+}
+
+enum ProductStatus {
+  ACTIVE    // 上架
+  INACTIVE  // 下架
+}
+
+enum StockStatus {
+  IN_STOCK      // 有货
+  OUT_OF_STOCK  // 缺货
+  PRE_ORDER     // 预订
+}
+
+enum GemType {
+  MOISSANITE  // 莫桑石
+  ZIRCON      // 锆石
+}
+
+enum MetalColor {
+  SILVER     // 银色
+  GOLD       // 金色
+  ROSE_GOLD  // 玫瑰金
+  OTHER      // 其他
+}
+
+enum OrderStatus {
+  PENDING_QUOTE    // 待报价
+  QUOTED           // 已报价
+  NEGOTIATING      // 协商中
+  CONFIRMED        // 已确认
+  PARTIALLY_PAID   // 部分付款
+  FULLY_PAID       // 已付清
+  SHIPPED          // 已发货
+  SETTLING         // 结算中
+  COMPLETED        // 已完成
+  CANCELLED        // 已取消
+}
+
+enum OrderItemStatus {
+  PENDING_QUOTE    // 待报价
+  QUOTED           // 已报价
+  OUT_OF_STOCK     // 缺货
+  CUSTOMER_REMOVED // 客户移除
+  CONFIRMED        // 已确认
+  RETURNED         // 退货
+  QTY_ADJUSTED     // 数量调整
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER    // 银行转账
+  WESTERN_UNION    // Western Union
+  CASH             // 现金
+  OTHER            // 其他
+}
+
+enum ShippingMethod {
+  SEA_FREIGHT      // 海运
+  AIR_FREIGHT      // 空运
+  EXPRESS          // 快递
+}
+
+// ============================================================
+// 数据模型
+// ============================================================
+
+/// 用户（管理员 / 客户）
+model User {
+  id            String     @id @default(cuid())
+  phone         String     @unique
+  passwordHash  String     @map("password_hash")
+  name          String
+  company       String?
+  role          UserRole   @default(CUSTOMER)
+  status        UserStatus @default(PENDING)
+  markupRatio   Decimal    @default(1.15) @map("markup_ratio") @db.Decimal(4, 2)
+  preferredLang String     @default("en") @map("preferred_lang")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  orders        Order[]
+
+  @@map("users")
+}
+
+/// 品类
+model Category {
+  id        String   @id @default(cuid())
+  nameZh    String   @map("name_zh")
+  nameEn    String   @map("name_en")
+  nameAr    String   @map("name_ar")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  products Product[]
+
+  @@map("categories")
+}
+
+/// 商品（SPU - 款式）
+model Product {
+  id              String        @id @default(cuid())
+  spuCode         String        @unique @map("spu_code")
+  nameZh          String?       @map("name_zh")
+  nameEn          String?       @map("name_en")
+  nameAr          String?       @map("name_ar")
+  descriptionZh   String?       @map("description_zh") @db.Text
+  descriptionEn   String?       @map("description_en") @db.Text
+  descriptionAr   String?       @map("description_ar") @db.Text
+  categoryId      String        @map("category_id")
+  gemTypes        GemType[]     @map("gem_types")
+  metalColors     MetalColor[]  @map("metal_colors")
+  status          ProductStatus @default(ACTIVE)
+  minPriceSar     Decimal?      @map("min_price_sar") @db.Decimal(10, 2)
+  maxPriceSar     Decimal?      @map("max_price_sar") @db.Decimal(10, 2)
+  sortOrder       Int           @default(0) @map("sort_order")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  category Category       @relation(fields: [categoryId], references: [id])
+  skus     ProductSku[]
+  images   ProductImage[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@map("products")
+}
+
+/// 商品 SKU（规格）
+model ProductSku {
+  id              String      @id @default(cuid())
+  productId       String      @map("product_id")
+  skuCode         String      @unique @map("sku_code")
+  gemType         GemType     @map("gem_type")
+  metalColor      MetalColor  @map("metal_color")
+  size            String?                               // 戒指尺码
+  chainLength     String?     @map("chain_length")      // 链长度
+  stockStatus     StockStatus @default(IN_STOCK) @map("stock_status")
+  referencePriceSar Decimal?  @map("reference_price_sar") @db.Decimal(10, 2)
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([productId])
+  @@map("product_skus")
+}
+
+/// 商品图片
+model ProductImage {
+  id            String   @id @default(cuid())
+  productId     String   @map("product_id")
+  url           String
+  thumbnailUrl  String?  @map("thumbnail_url")
+  isPrimary     Boolean  @default(false) @map("is_primary")
+  sortOrder     Int      @default(0) @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+/// 订单
+model Order {
+  id                  String      @id @default(cuid())
+  orderNo             String      @unique @map("order_no")
+  userId              String      @map("user_id")
+  status              OrderStatus @default(PENDING_QUOTE)
+  // 定价字段
+  exchangeRate        Decimal?    @map("exchange_rate") @db.Decimal(8, 4)    // CNY → SAR
+  markupRatio         Decimal?    @map("markup_ratio") @db.Decimal(4, 2)     // 本次加价比例
+  totalCny            Decimal?    @map("total_cny") @db.Decimal(12, 2)       // 成本总价
+  totalSar            Decimal?    @map("total_sar") @db.Decimal(12, 2)       // 客户总价
+  overrideTotalSar    Decimal?    @map("override_total_sar") @db.Decimal(12, 2)  // 手动覆盖
+  // 结算字段
+  settlementTotalCny  Decimal?    @map("settlement_total_cny") @db.Decimal(12, 2)
+  settlementTotalSar  Decimal?    @map("settlement_total_sar") @db.Decimal(12, 2)
+  settlementNote      String?     @map("settlement_note") @db.Text
+  // 物流运费
+  shippingCostCny     Decimal?    @map("shipping_cost_cny") @db.Decimal(10, 2)   // 运费(CNY)
+  // 时间
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+  confirmedAt         DateTime?   @map("confirmed_at")
+  completedAt         DateTime?   @map("completed_at")
+
+  user     User        @relation(fields: [userId], references: [id])
+  items    OrderItem[]
+  payments Payment[]
+  shipping Shipping?
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+/// 订单项
+model OrderItem {
+  id                  String          @id @default(cuid())
+  orderId             String          @map("order_id")
+  skuId               String          @map("sku_id")
+  productNameSnapshot String          @map("product_name_snapshot")
+  skuDescSnapshot     String          @map("sku_desc_snapshot")
+  quantity            Int
+  unitPriceCny        Decimal?        @map("unit_price_cny") @db.Decimal(10, 2)   // 成本价
+  unitPriceSar        Decimal?        @map("unit_price_sar") @db.Decimal(10, 2)   // 客户价
+  itemStatus          OrderItemStatus @default(PENDING_QUOTE) @map("item_status")
+  // 结算字段
+  settlementQty       Int?            @map("settlement_qty")                       // 结算数量
+  settlementPriceCny  Decimal?        @map("settlement_price_cny") @db.Decimal(10, 2) // 结算单价
+  settlementNote      String?         @map("settlement_note")
+  // 时间
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  order Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sku   ProductSku @relation(fields: [skuId], references: [id])
+
+  @@index([orderId])
+  @@index([skuId])
+  @@map("order_items")
+}
+
+/// 付款记录
+model Payment {
+  id          String        @id @default(cuid())
+  orderId     String        @map("order_id")
+  amountSar   Decimal       @map("amount_sar") @db.Decimal(12, 2)
+  method      PaymentMethod
+  proofUrl    String?       @map("proof_url")
+  note        String?       @db.Text
+  confirmedAt DateTime      @default(now()) @map("confirmed_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+/// 物流信息（1:1 关联订单）
+model Shipping {
+  id          String         @id @default(cuid())
+  orderId     String         @unique @map("order_id")
+  trackingNo  String?        @map("tracking_no")
+  trackingUrl String?        @map("tracking_url")
+  method      ShippingMethod?
+  note        String?        @db.Text
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("shippings")
+}
