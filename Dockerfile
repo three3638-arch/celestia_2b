@@ -1,9 +1,15 @@
 # 阶段1: 安装依赖
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
+
+# 使用阿里云镜像加速
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # 安装构建工具（用于原生模块编译）
 RUN apk add --no-cache libc6-compat python3 make g++
+
+# 使用国内 npm 镜像
+RUN npm config set registry https://registry.npmmirror.com
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
@@ -18,11 +24,17 @@ RUN npm install --os=linux --cpu=x64 sharp
 RUN npx prisma generate
 
 # 阶段2: 构建
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
+
+# 使用阿里云镜像加速
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # 安装构建工具
 RUN apk add --no-cache libc6-compat python3 make g++
+
+# 使用国内 npm 镜像
+RUN npm config set registry https://registry.npmmirror.com
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -38,7 +50,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # 阶段3: 运行
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
