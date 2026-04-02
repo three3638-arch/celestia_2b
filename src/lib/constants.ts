@@ -37,6 +37,9 @@ export const PAGINATION = {
 // 默认加价比例
 export const DEFAULT_MARKUP_RATIO = 1.15
 
+// 默认汇率（CNY → SAR）
+export const DEFAULT_EXCHANGE_RATE = 0.52
+
 // 支持的语言
 export const SUPPORTED_LOCALES = ['en', 'ar', 'zh'] as const
 export type SupportedLocale = typeof SUPPORTED_LOCALES[number]

@@ -42,6 +42,7 @@ export interface OrderFilterParams extends PaginationParams {
 export interface JwtPayload {
   userId: string
   role: 'ADMIN' | 'CUSTOMER'
+  status: 'PENDING' | 'ACTIVE'
   iat: number
   exp: number
 }
@@ -51,7 +52,9 @@ export interface SessionUser {
   id: string
   phone: string
   name: string
+  company: string | null
   role: 'ADMIN' | 'CUSTOMER'
+  status: 'PENDING' | 'ACTIVE'
   markupRatio: string  // Decimal as string
   preferredLang: string
 }

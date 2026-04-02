@@ -76,11 +76,7 @@ enum PaymentMethod {
   OTHER            // 其他
 }
 
-enum ShippingMethod {
-  SEA_FREIGHT      // 海运
-  AIR_FREIGHT      // 空运
-  EXPRESS          // 快递
-}
+
 
 // ============================================================
 // 数据模型
@@ -101,6 +97,8 @@ model User {
   updatedAt     DateTime   @updatedAt @map("updated_at")
 
   orders        Order[]
+  favorites     ProductFavorite[]
+  hiddenProducts ProductHidden[]
 
   @@map("users")
 }
@@ -132,6 +130,8 @@ model Product {
   categoryId      String        @map("category_id")
   gemTypes        GemType[]     @map("gem_types")
   metalColors     MetalColor[]  @map("metal_colors")
+  supplier        String?       @map("supplier")
+  supplierLink    String?       @map("supplier_link")
   status          ProductStatus @default(ACTIVE)
   minPriceSar     Decimal?      @map("min_price_sar") @db.Decimal(10, 2)
   maxPriceSar     Decimal?      @map("max_price_sar") @db.Decimal(10, 2)
@@ -142,6 +142,8 @@ model Product {
   category Category       @relation(fields: [categoryId], references: [id])
   skus     ProductSku[]
   images   ProductImage[]
+  favorites ProductFavorite[]
+  hiddenBy  ProductHidden[]
 
   @@index([categoryId])
   @@index([status])
@@ -200,6 +202,7 @@ model Order {
   // 结算字段
   settlementTotalCny  Decimal?    @map("settlement_total_cny") @db.Decimal(12, 2)
   settlementTotalSar  Decimal?    @map("settlement_total_sar") @db.Decimal(12, 2)
+  totalAmountSar      Decimal?    @map("total_amount_sar") @db.Decimal(12, 2)  // 结算确认后的应付总额
   settlementNote      String?     @map("settlement_note") @db.Text
   // 物流运费
   shippingCostCny     Decimal?    @map("shipping_cost_cny") @db.Decimal(10, 2)   // 运费(CNY)
@@ -269,7 +272,7 @@ model Shipping {
   orderId     String         @unique @map("order_id")
   trackingNo  String?        @map("tracking_no")
   trackingUrl String?        @map("tracking_url")
-  method      ShippingMethod?
+  method      String?
   note        String?        @db.Text
   createdAt   DateTime       @default(now()) @map("created_at")
   updatedAt   DateTime       @updatedAt @map("updated_at")
@@ -277,4 +280,36 @@ model Shipping {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("shippings")
+}
+
+/// 商品收藏
+model ProductFavorite {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@map("product_favorites")
+}
+
+/// 商品隐藏
+model ProductHidden {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@map("product_hidden")
 }
