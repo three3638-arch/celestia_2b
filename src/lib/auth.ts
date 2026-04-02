@@ -34,11 +34,16 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
  */
 export async function setAuthCookie(token: string): Promise<void> {
   const cookieStore = await cookies()
+  const domain = process.env.NODE_ENV === 'production'
+    ? process.env.COOKIE_DOMAIN || undefined
+    : undefined
+
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
+    domain,
     maxAge: COOKIE_MAX_AGE,
   })
 }
@@ -48,7 +53,18 @@ export async function setAuthCookie(token: string): Promise<void> {
  */
 export async function clearAuthCookie(): Promise<void> {
   const cookieStore = await cookies()
-  cookieStore.delete(COOKIE_NAME)
+  const domain = process.env.NODE_ENV === 'production'
+    ? process.env.COOKIE_DOMAIN || undefined
+    : undefined
+
+  cookieStore.set(COOKIE_NAME, '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    domain,
+    maxAge: 0,
+  })
 }
 
 /**

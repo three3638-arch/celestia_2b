@@ -11,6 +11,7 @@ services:
       - DATABASE_URL=postgresql://celestia:${DB_PASSWORD}@db:5432/celestia
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN}
       - NODE_ENV=production
       - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
       - NEXT_PUBLIC_DEFAULT_LOCALE=${NEXT_PUBLIC_DEFAULT_LOCALE:-en}

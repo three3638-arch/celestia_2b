@@ -15,7 +15,7 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
 # 安装生产依赖
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # 安装 sharp（Alpine 需要特殊处理）
 RUN npm install --os=linux --cpu=x64 sharp
