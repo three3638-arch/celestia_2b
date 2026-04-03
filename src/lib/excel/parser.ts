@@ -61,6 +61,28 @@ export async function parseExcel(filePath: string): Promise<ParsedProduct[]> {
 
   const products: ParsedProduct[] = []
 
+  // 深度诊断日志
+  const fs = await import('fs')
+  const stat = fs.statSync(filePath)
+  console.log('[Excel Parser] File size:', stat.size, 'bytes')
+  console.log('[Excel Parser] ExcelJS version:', (ExcelJS as any).Version || 'unknown')
+  console.log('[Excel Parser] Worksheet name:', worksheet.name, 'rowCount:', worksheet.rowCount)
+
+  // 检查 workbook 内部媒体数据
+  const wbModel = (workbook as any).model
+  console.log('[Excel Parser] wb.model.media exists:', !!(wbModel && wbModel.media))
+  console.log('[Excel Parser] wb.model.media length:', wbModel?.media?.length ?? 0)
+  if (wbModel?.media?.length > 0) {
+    console.log('[Excel Parser] First media item keys:', Object.keys(wbModel.media[0]))
+    console.log('[Excel Parser] First media type:', wbModel.media[0].type, 'name:', wbModel.media[0].name)
+    console.log('[Excel Parser] First media buffer size:', wbModel.media[0].buffer?.byteLength ?? 0)
+  }
+
+  // 检查 worksheet 内部 drawing 数据
+  const wsModel = (worksheet as any).model || (worksheet as any)._model
+  console.log('[Excel Parser] ws drawing:', JSON.stringify(wsModel?.drawing))
+  console.log('[Excel Parser] ws media:', JSON.stringify(wsModel?.media?.length ?? 'none'))
+
   // 获取所有图片信息
   const images = worksheet.getImages()
   console.log('[Excel Parser] Images found in worksheet:', images.length)
