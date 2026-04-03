@@ -56,6 +56,8 @@
     "metalColor": "لون المعدن",
     "size": "الحجم",
     "chainLength": "طول السلسلة",
+    "mainStoneSize": "حجم الحجر الرئيسي",
+    "selectMainStoneSize": "يرجى اختيار حجم الحجر الرئيسي",
     "moissanite": "مويسانيت",
     "zircon": "زركون",
     "silver": "فضي",

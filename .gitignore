@@ -51,3 +51,6 @@ next-env.d.ts
 
 # uploads
 public/uploads/
+
+# products folder
+products/

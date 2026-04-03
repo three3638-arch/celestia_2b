@@ -157,6 +157,7 @@ model ProductSku {
   skuCode         String      @unique @map("sku_code")
   gemType         GemType     @map("gem_type")
   metalColor      MetalColor  @map("metal_color")
+  mainStoneSize   String?     @map("main_stone_size")   // 主石尺寸(mm)
   size            String?                               // 戒指尺码
   chainLength     String?     @map("chain_length")      // 链长度
   stockStatus     StockStatus @default(IN_STOCK) @map("stock_status")

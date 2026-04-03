@@ -191,7 +191,7 @@ export async function createOrder(
       for (const item of validated.items) {
         const sku = skuMap.get(item.skuId)!
         const productName = sku.product.nameEn || sku.product.nameZh || 'Product'
-        const skuDesc = `${sku.gemType} / ${sku.metalColor}${sku.size ? ` / Size ${sku.size}` : ''}${sku.chainLength ? ` / ${sku.chainLength}` : ''}`
+        const skuDesc = `${sku.gemType} / ${sku.metalColor}${sku.mainStoneSize ? ` / ${sku.mainStoneSize}mm` : ''}${sku.size ? ` / Size ${sku.size}` : ''}${sku.chainLength ? ` / ${sku.chainLength}` : ''}`
         
         await tx.orderItem.create({
           data: {
@@ -528,7 +528,7 @@ export async function customerUpdateOrder(
           if (!sku) continue
           
           const productName = sku.product.nameEn || sku.product.nameZh || 'Product'
-          const skuDesc = `${sku.gemType} / ${sku.metalColor}${sku.size ? ` / Size ${sku.size}` : ''}${sku.chainLength ? ` / ${sku.chainLength}` : ''}`
+          const skuDesc = `${sku.gemType} / ${sku.metalColor}${sku.mainStoneSize ? ` / ${sku.mainStoneSize}mm` : ''}${sku.size ? ` / Size ${sku.size}` : ''}${sku.chainLength ? ` / ${sku.chainLength}` : ''}`
           
           await tx.orderItem.create({
             data: {

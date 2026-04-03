@@ -9,10 +9,12 @@ interface SkuSelectorProps {
   product: ProductDetail;
   selectedGemType: GemType | null;
   selectedMetalColor: MetalColor | null;
+  selectedMainStoneSize: string | null;
   selectedSize: string | null;
   selectedChainLength: string | null;
   onGemTypeChange: (gemType: GemType) => void;
   onMetalColorChange: (metalColor: MetalColor) => void;
+  onMainStoneSizeChange: (mainStoneSize: string) => void;
   onSizeChange: (size: string) => void;
   onChainLengthChange: (chainLength: string) => void;
 }
@@ -34,6 +36,7 @@ function isSkuOutOfStock(
   product: ProductDetail,
   gemType: GemType,
   metalColor: MetalColor,
+  mainStoneSize: string | null,
   size: string | null,
   chainLength: string | null
 ): boolean {
@@ -41,6 +44,7 @@ function isSkuOutOfStock(
     (sku) =>
       sku.gemType === gemType &&
       sku.metalColor === metalColor &&
+      (mainStoneSize === null || sku.mainStoneSize === mainStoneSize) &&
       (size === null || sku.size === size) &&
       (chainLength === null || sku.chainLength === chainLength)
   );
@@ -52,6 +56,7 @@ export function getSelectedSkuPrice(
   product: ProductDetail,
   gemType: GemType | null,
   metalColor: MetalColor | null,
+  mainStoneSize: string | null,
   size: string | null,
   chainLength: string | null
 ): string | null {
@@ -61,6 +66,7 @@ export function getSelectedSkuPrice(
     (sku) =>
       sku.gemType === gemType &&
       sku.metalColor === metalColor &&
+      (mainStoneSize === null || sku.mainStoneSize === mainStoneSize) &&
       (size === null || sku.size === size) &&
       (chainLength === null || sku.chainLength === chainLength)
   );
@@ -73,6 +79,7 @@ export function isSkuAvailable(
   product: ProductDetail,
   gemType: GemType | null,
   metalColor: MetalColor | null,
+  mainStoneSize: string | null,
   size: string | null,
   chainLength: string | null
 ): boolean {
@@ -82,6 +89,7 @@ export function isSkuAvailable(
     (sku) =>
       sku.gemType === gemType &&
       sku.metalColor === metalColor &&
+      (mainStoneSize === null || sku.mainStoneSize === mainStoneSize) &&
       (size === null || sku.size === size) &&
       (chainLength === null || sku.chainLength === chainLength)
   );
@@ -94,6 +102,7 @@ export function getSelectedSkuStockStatus(
   product: ProductDetail,
   gemType: GemType | null,
   metalColor: MetalColor | null,
+  mainStoneSize: string | null,
   size: string | null,
   chainLength: string | null
 ): "IN_STOCK" | "OUT_OF_STOCK" | "PRE_ORDER" | null {
@@ -103,6 +112,7 @@ export function getSelectedSkuStockStatus(
     (sku) =>
       sku.gemType === gemType &&
       sku.metalColor === metalColor &&
+      (mainStoneSize === null || sku.mainStoneSize === mainStoneSize) &&
       (size === null || sku.size === size) &&
       (chainLength === null || sku.chainLength === chainLength)
   );
@@ -114,15 +124,22 @@ export function SkuSelector({
   product,
   selectedGemType,
   selectedMetalColor,
+  selectedMainStoneSize,
   selectedSize,
   selectedChainLength,
   onGemTypeChange,
   onMetalColorChange,
+  onMainStoneSizeChange,
   onSizeChange,
   onChainLengthChange,
 }: SkuSelectorProps) {
   const t = useTranslations("products");
   
+  // 获取所有可选的主石尺寸
+  const availableMainStoneSizes = Array.from(
+    new Set(product.skus.map((sku) => sku.mainStoneSize).filter(Boolean))
+  ) as string[];
+
   // 获取所有可选的尺寸
   const availableSizes = Array.from(
     new Set(product.skus.map((sku) => sku.size).filter(Boolean))
@@ -140,6 +157,7 @@ export function SkuSelector({
       (sku) =>
         sku.gemType === gemType &&
         sku.metalColor === selectedMetalColor &&
+        (selectedMainStoneSize === null || sku.mainStoneSize === selectedMainStoneSize) &&
         (selectedSize === null || sku.size === selectedSize) &&
         (selectedChainLength === null || sku.chainLength === selectedChainLength)
     );
@@ -152,6 +170,20 @@ export function SkuSelector({
       (sku) =>
         sku.gemType === selectedGemType &&
         sku.metalColor === metalColor &&
+        (selectedMainStoneSize === null || sku.mainStoneSize === selectedMainStoneSize) &&
+        (selectedSize === null || sku.size === selectedSize) &&
+        (selectedChainLength === null || sku.chainLength === selectedChainLength)
+    );
+  };
+
+  // 检查主石尺寸选项是否可用
+  const isMainStoneSizeAvailable = (mainStoneSize: string): boolean => {
+    if (!selectedGemType || !selectedMetalColor) return true;
+    return product.skus.some(
+      (sku) =>
+        sku.gemType === selectedGemType &&
+        sku.metalColor === selectedMetalColor &&
+        sku.mainStoneSize === mainStoneSize &&
         (selectedSize === null || sku.size === selectedSize) &&
         (selectedChainLength === null || sku.chainLength === selectedChainLength)
     );
@@ -164,6 +196,7 @@ export function SkuSelector({
       (sku) =>
         sku.gemType === selectedGemType &&
         sku.metalColor === selectedMetalColor &&
+        (selectedMainStoneSize === null || sku.mainStoneSize === selectedMainStoneSize) &&
         sku.size === size &&
         (selectedChainLength === null || sku.chainLength === selectedChainLength)
     );
@@ -176,6 +209,7 @@ export function SkuSelector({
       (sku) =>
         sku.gemType === selectedGemType &&
         sku.metalColor === selectedMetalColor &&
+        (selectedMainStoneSize === null || sku.mainStoneSize === selectedMainStoneSize) &&
         sku.chainLength === chainLength &&
         (selectedSize === null || sku.size === selectedSize)
     );
@@ -190,6 +224,7 @@ export function SkuSelector({
       product,
       gemType,
       metalColor,
+      selectedMainStoneSize,
       selectedSize,
       selectedChainLength
     );
@@ -272,6 +307,40 @@ export function SkuSelector({
           })}
         </div>
       </div>
+
+      {/* 主石尺寸选择 */}
+      {availableMainStoneSizes.length > 0 && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground">{t("mainStoneSize")}</label>
+          <div className="flex flex-wrap gap-2">
+            {availableMainStoneSizes.map((mainStoneSize) => {
+              const isSelected = selectedMainStoneSize === mainStoneSize;
+              const isAvailable = isMainStoneSizeAvailable(mainStoneSize);
+
+              return (
+                <button
+                  key={mainStoneSize}
+                  onClick={() => onMainStoneSizeChange(mainStoneSize)}
+                  disabled={!isAvailable}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 min-w-[48px]",
+                    isSelected
+                      ? "border-primary text-primary bg-primary/10"
+                      : "border-border text-muted-foreground bg-transparent",
+                    !isAvailable &&
+                      "opacity-50 cursor-not-allowed line-through decoration-muted-foreground",
+                    isAvailable &&
+                      !isSelected &&
+                      "hover:border-primary/50 hover:text-primary"
+                  )}
+                >
+                  {mainStoneSize}mm
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 尺寸选择 */}
       {availableSizes.length > 0 && (

@@ -25,6 +25,7 @@ export interface SkuItem {
   id?: string;
   gemType: GemType;
   metalColor: MetalColor;
+  mainStoneSize?: string;
   size?: string;
   chainLength?: string;
   stockStatus: StockStatus;
@@ -108,6 +109,9 @@ export function SkuEditor({ skus, onChange, errors, disabled }: SkuEditorProps) 
               <TableHead className="text-muted-foreground font-medium w-[100px]">
                 金属底色
               </TableHead>
+              <TableHead className="text-muted-foreground font-medium w-[120px]">
+                主石尺寸(mm)
+              </TableHead>
               <TableHead className="text-muted-foreground font-medium w-[100px]">
                 尺码
               </TableHead>
@@ -177,6 +181,15 @@ export function SkuEditor({ skus, onChange, errors, disabled }: SkuEditorProps) 
                       ))}
                     </SelectContent>
                   </Select>
+                </TableCell>
+                <TableCell className="py-3">
+                  <Input
+                    value={sku.mainStoneSize || ""}
+                    onChange={(e) => updateSku(index, "mainStoneSize", e.target.value)}
+                    placeholder="可选"
+                    className="h-9 bg-background border-border"
+                    disabled={disabled}
+                  />
                 </TableCell>
                 <TableCell className="py-3">
                   <Input

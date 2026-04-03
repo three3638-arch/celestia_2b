@@ -7,6 +7,7 @@ export interface ParsedProduct {
   categoryName: string         // 品类名称（中文）
   gemTypesRaw: string          // 原始宝石类型（如 "莫桑石,锆石"）
   metalColorsRaw: string       // 原始金属底色（如 "银,金"）
+  mainStoneSizesRaw: string    // 原始主石尺寸（如 "8,10"）
   sizesRaw: string             // 原始尺码（如 "6,7,8"）
   chainLengthsRaw: string      // 原始链长度（如 "40cm,45cm"）
   referencePriceSarMin: string // 参考价最低(SAR)
@@ -15,7 +16,7 @@ export interface ParsedProduct {
   supplier: string             // 供应商
   supplierLink: string         // 供应商链接
   primaryImage: ArrayBuffer | null   // 首图（B列，必填）
-  extraImages: ArrayBuffer[]         // 其他图片（L-P列，可选）
+  extraImages: ArrayBuffer[]         // 其他图片（M-Q列，可选）
 }
 
 // 列索引映射（A=1, B=2, ...）
@@ -26,15 +27,16 @@ const COLUMN_MAPPING = {
   CATEGORY: 4,              // D: 品类
   GEM_TYPES: 5,             // E: 宝石类型
   METAL_COLORS: 6,          // F: 金属底色
-  SIZES: 7,                 // G: 尺码
-  CHAIN_LENGTHS: 8,         // H: 链长度(cm)
-  PRICE_MIN: 9,             // I: 参考价最低(SAR)
-  PRICE_MAX: 10,            // J: 参考价最高(SAR)
-  DESCRIPTION: 11,          // K: 描述
-  EXTRA_IMAGES_START: 12,   // L: 其他图片起始
-  EXTRA_IMAGES_END: 16,     // P: 其他图片结束
-  SUPPLIER: 17,             // Q: 供应商
-  SUPPLIER_LINK: 18,        // R: 供应商链接
+  MAIN_STONE_SIZES: 7,      // G: 主石尺寸(mm)
+  SIZES: 8,                 // H: 尺码
+  CHAIN_LENGTHS: 9,         // I: 链长度(cm)
+  PRICE_MIN: 10,            // J: 参考价最低(SAR)
+  PRICE_MAX: 11,            // K: 参考价最高(SAR)
+  DESCRIPTION: 12,          // L: 描述
+  EXTRA_IMAGES_START: 13,   // M: 其他图片起始
+  EXTRA_IMAGES_END: 17,     // Q: 其他图片结束
+  SUPPLIER: 18,             // R: 供应商
+  SUPPLIER_LINK: 19,        // S: 供应商链接
 }
 
 interface ImageInfo {
@@ -114,6 +116,7 @@ export async function parseExcel(filePath: string): Promise<ParsedProduct[]> {
       categoryName: row.getCell(COLUMN_MAPPING.CATEGORY).text?.trim() || '',
       gemTypesRaw: row.getCell(COLUMN_MAPPING.GEM_TYPES).text?.replace(/[\r\n]+/g, ',')?.trim() || '',
       metalColorsRaw: row.getCell(COLUMN_MAPPING.METAL_COLORS).text?.replace(/[\r\n]+/g, ',')?.trim() || '',
+      mainStoneSizesRaw: row.getCell(COLUMN_MAPPING.MAIN_STONE_SIZES).text?.replace(/[\r\n]+/g, ',')?.trim() || '',
       sizesRaw: row.getCell(COLUMN_MAPPING.SIZES).text?.replace(/[\r\n]+/g, ',')?.trim() || '',
       chainLengthsRaw: row.getCell(COLUMN_MAPPING.CHAIN_LENGTHS).text?.replace(/[\r\n]+/g, ',')?.trim() || '',
       referencePriceSarMin: row.getCell(COLUMN_MAPPING.PRICE_MIN).text?.trim() || '',

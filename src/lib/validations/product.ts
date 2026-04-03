@@ -16,6 +16,7 @@ export type ProductFilterInput = z.infer<typeof productFilterSchema>
 export const createSkuSchema = z.object({
   gemType: z.enum(['MOISSANITE', 'ZIRCON']),
   metalColor: z.enum(['SILVER', 'GOLD', 'ROSE_GOLD', 'OTHER']),
+  mainStoneSize: z.string().max(20).optional(),
   size: z.string().max(20).optional(),
   chainLength: z.string().max(20).optional(),
   stockStatus: z.enum(['IN_STOCK', 'OUT_OF_STOCK', 'PRE_ORDER']).default('IN_STOCK'),

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// 列定义（18列 A-R）
+// 列定义（19列 A-S）
 const COLUMNS = [
   { key: 'spuCode', header: 'SPU编号', width: 16 },      // A
   { key: 'mainImage', header: '首图', width: 18 },        // B
@@ -13,18 +13,19 @@ const COLUMNS = [
   { key: 'category', header: '品类', width: 14 },         // D
   { key: 'gemTypes', header: '宝石类型', width: 18 },     // E
   { key: 'metalColors', header: '金属底色', width: 18 },  // F
-  { key: 'sizes', header: '尺码', width: 14 },            // G
-  { key: 'chainLengths', header: '长度(cm)', width: 14 }, // H
-  { key: 'priceMin', header: '参考价最低(SAR)', width: 16 }, // I
-  { key: 'priceMax', header: '参考价最高(SAR)', width: 16 }, // J
-  { key: 'description', header: '描述', width: 35 },      // K
-  { key: 'image1', header: '其他图片1', width: 16 },      // L
-  { key: 'image2', header: '其他图片2', width: 16 },      // M
-  { key: 'image3', header: '其他图片3', width: 16 },      // N
-  { key: 'image4', header: '其他图片4', width: 16 },      // O
-  { key: 'image5', header: '其他图片5', width: 16 },      // P
-  { key: 'supplier', header: '供应商', width: 20 },       // Q
-  { key: 'supplierLink', header: '供应商链接', width: 30 }, // R
+  { key: 'mainStoneSizes', header: '主石尺寸(mm)', width: 16 }, // G
+  { key: 'sizes', header: '尺码', width: 14 },            // H
+  { key: 'chainLengths', header: '长度(cm)', width: 14 }, // I
+  { key: 'priceMin', header: '参考价最低(SAR)', width: 16 }, // J
+  { key: 'priceMax', header: '参考价最高(SAR)', width: 16 }, // K
+  { key: 'description', header: '描述', width: 35 },      // L
+  { key: 'image1', header: '其他图片1', width: 16 },      // M
+  { key: 'image2', header: '其他图片2', width: 16 },      // N
+  { key: 'image3', header: '其他图片3', width: 16 },      // O
+  { key: 'image4', header: '其他图片4', width: 16 },      // P
+  { key: 'image5', header: '其他图片5', width: 16 },      // Q
+  { key: 'supplier', header: '供应商', width: 20 },       // R
+  { key: 'supplierLink', header: '供应商链接', width: 30 }, // S
 ]
 
 // 主题色
@@ -43,6 +44,7 @@ const SAMPLE_DATA = [
     category: '戒指',
     gemTypes: '莫桑石',
     metalColors: '银色,金色,玫瑰金',
+    mainStoneSizes: '8,10',
     sizes: '6,7,8,9',
     chainLengths: '',
     priceMin: '80',
@@ -63,6 +65,7 @@ const SAMPLE_DATA = [
     category: '项链',
     gemTypes: '莫桑石',
     metalColors: '银色,金色',
+    mainStoneSizes: '6,8',
     sizes: '',
     chainLengths: '40,45,50',
     priceMin: '120',
@@ -83,6 +86,7 @@ const SAMPLE_DATA = [
     category: '手链',
     gemTypes: '莫桑石,锆石',
     metalColors: '银色,玫瑰金',
+    mainStoneSizes: '',
     sizes: '',
     chainLengths: '16,18,20',
     priceMin: '100',
@@ -142,6 +146,7 @@ async function generateTemplate() {
       data.category,
       data.gemTypes,
       data.metalColors,
+      data.mainStoneSizes,
       data.sizes,
       data.chainLengths,
       data.priceMin,
@@ -187,16 +192,17 @@ async function generateTemplate() {
     '  • E-宝石类型：逗号分隔，如 莫桑石 或 莫桑石,锆石',
     '  • F-金属底色：逗号分隔，如 银色,金色,玫瑰金',
     '',
-    '二、可选字段（C, G, H, I, J, K, L-P, Q, R）',
+    '二、可选字段（C, G, H, I, J, K, L, M-Q, R, S）',
     '  • C-名称：中文名称，为空时以SPU编号显示',
-    '  • G-尺码：戒指用，逗号分隔如 6,7,8,9。项链/手链/耳钉留空',
-    '  • H-长度(cm)：项链/手链用，逗号分隔如 40,45,50。戒指/耳钉留空',
-    '  • I-参考价最低(SAR)：价格区间下限，纯数字',
-    '  • J-参考价最高(SAR)：价格区间上限，纯数字',
-    '  • K-描述：中文描述，系统将自动翻译为英文和阿拉伯文',
-    '  • L~P-其他图片1-5：附加图片，最多5张',
-    '  • Q-供应商：供应商名称，不参与翻译',
-    '  • R-供应商链接：供应商产品链接或联系方式，不参与翻译',
+    '  • G-主石尺寸(mm)：逗号分隔如 8,10。耳钉可留空',
+    '  • H-尺码：戒指用，逗号分隔如 6,7,8,9。项链/手链/耳钉留空',
+    '  • I-长度(cm)：项链/手链用，逗号分隔如 40,45,50。戒指/耳钉留空',
+    '  • J-参考价最低(SAR)：价格区间下限，纯数字',
+    '  • K-参考价最高(SAR)：价格区间上限，纯数字',
+    '  • L-描述：中文描述，系统将自动翻译为英文和阿拉伯文',
+    '  • M~Q-其他图片1-5：附加图片，最多5张',
+    '  • R-供应商：供应商名称，不参与翻译',
+    '  • S-供应商链接：供应商产品链接或联系方式，不参与翻译',
     '',
     '三、图片嵌入方法',
     '  1. 点击单元格（如 B2 首图列）',
@@ -205,12 +211,13 @@ async function generateTemplate() {
     '  4. 系统导入时会自动提取所有嵌入的图片',
     '',
     '四、SKU自动生成规则',
-    '  系统根据宝石类型 × 金属底色 × 尺码/长度 的笛卡尔积自动生成SKU',
-    '  示例：宝石=莫桑石,锆石；金属=银色,金色；长度=40,45,50',
-    '        → 生成 2×2×3 = 12 个SKU',
-    '  SKU编号格式：{SPU编号}-{宝石缩写}-{金属缩写}-{尺码或长度}',
+    '  系统根据宝石类型 × 金属底色 × 主石尺寸 × 尺码/长度 的笛卡尔积自动生成SKU',
+    '  示例：宝石=莫桑石；金属=银色,金色；主石尺寸=8,10；长度=40,45',
+    '        → 生成 1×2×2×2 = 8 个SKU',
+    '  SKU编号格式：{SPU编号}-{宝石缩写}-{金属缩写}-{主石尺寸}MM-{尺码或长度}',
     '    宝石缩写：MO=莫桑石, ZR=锆石',
     '    金属缩写：SIL=银色, GLD=金色, RSG=玫瑰金, OTH=其他',
+    '    示例：CJ-NK-001-MO-SIL-8MM-L40',
     '',
     '五、导入流程',
     '  上传Excel → 系统解析并提取图片 → AI翻译名称/描述 → 预览确认 → 写入数据库',
@@ -224,10 +231,10 @@ async function generateTemplate() {
     }
   })
 
-  // 合并说明行的单元格（扩展到A:R，共18列）
+  // 合并说明行的单元格（扩展到A:S，共19列）
   const startRow = 6 // 空行之后
   const endRow = startRow + instructions.length - 1
-  worksheet.mergeCells(`A${startRow}:R${endRow}`)
+  worksheet.mergeCells(`A${startRow}:S${endRow}`)
 
   // 设置合并单元格样式
   const mergedCell = worksheet.getCell(`A${startRow}`)

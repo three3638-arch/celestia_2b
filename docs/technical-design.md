@@ -362,6 +362,7 @@ model ProductSku {
   skuCode         String      @unique @map("sku_code")
   gemType         GemType     @map("gem_type")
   metalColor      MetalColor  @map("metal_color")
+  mainStoneSize   String?     @map("main_stone_size")   // 主石尺寸(mm)
   size            String?                               // 戒指尺码
   length          String?                               // 链长度(cm)
   refPriceMinSar  Decimal?    @map("ref_price_min_sar") @db.Decimal(10, 2)
@@ -722,8 +723,8 @@ POST /api/upload/image
   │
   │  ExcelJS 读取 workbook
   │  遍历 worksheet.drawings → 按 row/col 位置匹配到对应 SPU
-  │  区分 B 列（首图，is_primary=true）和 L+ 列（其他图片）
-  │  解析文本列（A~K）
+  │  区分 B 列（首图，is_primary=true）和 M+ 列（其他图片）
+  │  解析文本列（A~M）
   │
   ↓
 [阶段二：处理]
@@ -739,10 +740,10 @@ POST /api/upload/image
   │    调用阿里云 alimt: TranslateGeneral(zh→en), TranslateGeneral(zh→ar)
   │    按分隔符拆分回对应 SPU
   │
-  │  SKU 展开:
-  │    对每行 SPU: 解析逗号分隔的 gem_types, metal_colors, sizes, lengths
+  │  SKU 展开（五维笛卡尔积）:
+  │    对每行 SPU: 解析逗号分隔的 gem_types, metal_colors, main_stone_sizes, sizes, lengths
   │    笛卡尔积组合生成 SKU 列表
-  │    按规则生成 sku_code: {spuCode}-{GEM}-{METAL}-{SIZE/LEN}
+  │    按规则生成 sku_code: {SPU}-{GEM}-{METAL}[-{STONE}][-S{SIZE}][-L{LEN}]
   │
   ↓
 [阶段三：预览与确认]
@@ -752,6 +753,27 @@ POST /api/upload/image
   │  用户确认后:
   │    Prisma 事务内 createMany → Product + ProductSku + ProductImage
   │    清理临时文件
+```
+
+**SKU 编码生成规则（业务可读式）：**
+
+```
+{SPU}-{GEM}-{METAL}[-{STONE}][-S{SIZE}][-L{LEN}]
+
+示例：
+  CJ-NK-001-MO-SIL-8-L45     莫桑石+银色+8mm主石+45cm链长
+  CJ-NK-001-MO-SIL-L45       莫桑石+银色+无主石尺寸+45cm链长
+  CJ-RG-002-MO-GLD-10-S7     莫桑石+金色+10mm主石+7号戒圈
+  CJ-RG-002-ZR-SIL-S6        锆石+银色+无主石尺寸+6号戒圈
+  CJ-ER-003-MO-RSG-8         莫桑石+玫瑰金+8mm主石（耳钉无尺码/链长）
+
+编码规则：
+  - SPU: 商品编号
+  - GEM: MO(莫桑石) / ZR(锆石)
+  - METAL: SIL(银色) / GLD(金色) / RSG(玫瑰金) / OTH(其他)
+  - STONE: 主石尺寸（可选），如 6, 8, 10 表示 mm
+  - SIZE: S{尺码} 用于戒指，如 S6, S7, S8
+  - LEN: L{长度} 用于项链/手链，如 L40, L45, L50
 ```
 
 **ExcelJS 图片匹配逻辑：**

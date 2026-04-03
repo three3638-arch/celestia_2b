@@ -56,6 +56,8 @@
     "metalColor": "金属颜色",
     "size": "尺寸",
     "chainLength": "链长",
+    "mainStoneSize": "主石尺寸",
+    "selectMainStoneSize": "请选择主石尺寸",
     "moissanite": "莫桑石",
     "zircon": "锆石",
     "silver": "银色",

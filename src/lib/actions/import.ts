@@ -93,10 +93,32 @@ const TEMP_DIR = join(process.cwd(), 'public', 'uploads', 'temp')
 // ============================================================
 
 /**
- * 生成 SKU 编码
+ * 生成 SKU 编码（业务可读式）
  */
-function generateSkuCode(spuCode: string, index: number): string {
-  return `${spuCode}-${String(index + 1).padStart(3, '0')}`
+function generateSkuCode(
+  spuCode: string,
+  sku: { gemType: string; metalColor: string; mainStoneSize?: string | null; size?: string | null; chainLength?: string | null }
+): string {
+  const GEM_SHORT: Record<string, string> = {
+    MOISSANITE: 'MO',
+    ZIRCON: 'ZR',
+  }
+  const METAL_SHORT: Record<string, string> = {
+    SILVER: 'SIL',
+    GOLD: 'GLD',
+    ROSE_GOLD: 'RSG',
+    OTHER: 'OTH',
+  }
+
+  const parts = [
+    spuCode,
+    GEM_SHORT[sku.gemType] || sku.gemType,
+    METAL_SHORT[sku.metalColor] || sku.metalColor,
+  ]
+  if (sku.mainStoneSize) parts.push(sku.mainStoneSize.replace(/mm$/i, '') + 'MM')
+  if (sku.size) parts.push('S' + sku.size)
+  if (sku.chainLength) parts.push('L' + sku.chainLength.replace(/cm$/i, ''))
+  return parts.join('-')
 }
 
 /**
@@ -299,6 +321,7 @@ export async function parseExcelTask(taskId: string): Promise<ApiResponse> {
       const expandedSkus = expandSkus({
         gemTypesRaw: parsed.gemTypesRaw,
         metalColorsRaw: parsed.metalColorsRaw,
+        mainStoneSizesRaw: parsed.mainStoneSizesRaw,
         sizesRaw: parsed.sizesRaw,
         chainLengthsRaw: parsed.chainLengthsRaw,
         referencePriceSarMin: parsed.referencePriceSarMin,
@@ -306,9 +329,9 @@ export async function parseExcelTask(taskId: string): Promise<ApiResponse> {
       })
 
       // 生成 SKU 编码
-      const processedSkus: ProcessedSku[] = expandedSkus.map((sku, index) => ({
+      const processedSkus: ProcessedSku[] = expandedSkus.map((sku) => ({
         ...sku,
-        skuCode: generateSkuCode(parsed.spuCode, index),
+        skuCode: generateSkuCode(parsed.spuCode, sku),
       }))
 
       processedProducts.push({
@@ -510,6 +533,7 @@ export async function confirmImport(taskId: string): Promise<ApiResponse<ImportR
                 skuCode: sku.skuCode,
                 gemType: sku.gemType,
                 metalColor: sku.metalColor,
+                mainStoneSize: sku.mainStoneSize,
                 size: sku.size,
                 chainLength: sku.chainLength,
                 // SKU 的参考价使用 min，如果没有则使用 max

@@ -3,6 +3,7 @@ import type { GemType, MetalColor } from '@prisma/client'
 export interface ExpandedSku {
   gemType: GemType
   metalColor: MetalColor
+  mainStoneSize?: string
   size?: string
   chainLength?: string
   referencePriceSarMin?: string
@@ -65,16 +66,22 @@ function mapValues<T extends string>(rawValue: string, map: Record<string, T>): 
 export function expandSkus(params: {
   gemTypesRaw: string          // "莫桑石,锆石"
   metalColorsRaw: string       // "银,金"
+  mainStoneSizesRaw: string    // "8,10" 或 ""
   sizesRaw: string             // "6,7,8" 或 ""
   chainLengthsRaw: string      // "40cm,45cm" 或 ""
   referencePriceSarMin: string // 参考价最低
   referencePriceSarMax: string // 参考价最高
 }): ExpandedSku[] {
-  const { gemTypesRaw, metalColorsRaw, sizesRaw, chainLengthsRaw, referencePriceSarMin, referencePriceSarMax } = params
+  const { gemTypesRaw, metalColorsRaw, mainStoneSizesRaw, sizesRaw, chainLengthsRaw, referencePriceSarMin, referencePriceSarMax } = params
 
   // 1. 按逗号分割每个维度
   const gemTypes = mapValues(gemTypesRaw, GEM_TYPE_MAP)
   const metalColors = mapValues(metalColorsRaw, METAL_COLOR_MAP)
+  
+  // 解析主石尺寸（可选）
+  const mainStoneSizes = mainStoneSizesRaw
+    ? mainStoneSizesRaw.split(/[,，、]/).map(v => v.trim()).filter(v => v)
+    : [undefined]
   
   // 解析尺码（可选）
   const sizes = sizesRaw
@@ -91,21 +98,24 @@ export function expandSkus(params: {
     return []
   }
 
-  // 2. 笛卡尔积生成所有组合
+  // 2. 笛卡尔积生成所有组合（五重循环）
   const skus: ExpandedSku[] = []
 
   for (const gemType of gemTypes) {
     for (const metalColor of metalColors) {
-      for (const size of sizes) {
-        for (const chainLength of chainLengths) {
-          skus.push({
-            gemType,
-            metalColor,
-            size,
-            chainLength,
-            referencePriceSarMin: referencePriceSarMin || undefined,
-            referencePriceSarMax: referencePriceSarMax || undefined,
-          })
+      for (const mainStoneSize of mainStoneSizes) {
+        for (const size of sizes) {
+          for (const chainLength of chainLengths) {
+            skus.push({
+              gemType,
+              metalColor,
+              mainStoneSize,
+              size,
+              chainLength,
+              referencePriceSarMin: referencePriceSarMin || undefined,
+              referencePriceSarMax: referencePriceSarMax || undefined,
+            })
+          }
         }
       }
     }
@@ -134,15 +144,17 @@ export function extractMetalColors(metalColorsRaw: string): MetalColor[] {
 export function calculateSkuCount(params: {
   gemTypesRaw: string
   metalColorsRaw: string
+  mainStoneSizesRaw: string
   sizesRaw: string
   chainLengthsRaw: string
 }): number {
-  const { gemTypesRaw, metalColorsRaw, sizesRaw, chainLengthsRaw } = params
+  const { gemTypesRaw, metalColorsRaw, mainStoneSizesRaw, sizesRaw, chainLengthsRaw } = params
 
   const gemTypes = mapValues(gemTypesRaw, GEM_TYPE_MAP)
   const metalColors = mapValues(metalColorsRaw, METAL_COLOR_MAP)
+  const mainStoneSizes = mainStoneSizesRaw ? mainStoneSizesRaw.split(/[,，、]/).map(v => v.trim()).filter(v => v) : ['']
   const sizes = sizesRaw ? sizesRaw.split(/[,，、]/).map(v => v.trim()).filter(v => v) : ['']
   const chainLengths = chainLengthsRaw ? chainLengthsRaw.split(/[,，、]/).map(v => v.trim()).filter(v => v) : ['']
 
-  return gemTypes.length * metalColors.length * sizes.length * chainLengths.length
+  return gemTypes.length * metalColors.length * mainStoneSizes.length * sizes.length * chainLengths.length
 }

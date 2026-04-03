@@ -31,6 +31,7 @@ const fieldNameMap: Record<string, string> = {
   images: '图片',
   'gemType': '宝石类型',
   'metalColor': '金属底色',
+  'mainStoneSize': '主石尺寸',
   'size': '尺寸',
   'chainLength': '链条长度',
   'stockStatus': '库存状态',
@@ -86,6 +87,7 @@ export interface ProductDetail {
     skuCode: string
     gemType: GemType
     metalColor: MetalColor
+    mainStoneSize: string | null
     size: string | null
     chainLength: string | null
     stockStatus: StockStatus
@@ -133,6 +135,7 @@ export interface CreateProductInput {
   skus: {
     gemType: GemType
     metalColor: MetalColor
+    mainStoneSize?: string
     size?: string
     chainLength?: string
     stockStatus?: StockStatus
@@ -162,6 +165,7 @@ export interface UpdateProductInput {
   skus?: {
     gemType: GemType
     metalColor: MetalColor
+    mainStoneSize?: string
     size?: string
     chainLength?: string
     stockStatus?: StockStatus
@@ -179,9 +183,31 @@ export interface UpdateProductInput {
 // 辅助函数
 // ============================================================
 
-/** 生成 SKU 编码 */
-function generateSkuCode(spuCode: string, index: number): string {
-  return `${spuCode}-${String(index + 1).padStart(3, '0')}`
+/** 生成 SKU 编码（业务可读式） */
+function generateSkuCode(
+  spuCode: string,
+  sku: { gemType: string; metalColor: string; mainStoneSize?: string | null; size?: string | null; chainLength?: string | null }
+): string {
+  const GEM_SHORT: Record<string, string> = {
+    MOISSANITE: 'MO',
+    ZIRCON: 'ZR',
+  }
+  const METAL_SHORT: Record<string, string> = {
+    SILVER: 'SIL',
+    GOLD: 'GLD',
+    ROSE_GOLD: 'RSG',
+    OTHER: 'OTH',
+  }
+
+  const parts = [
+    spuCode,
+    GEM_SHORT[sku.gemType] || sku.gemType,
+    METAL_SHORT[sku.metalColor] || sku.metalColor,
+  ]
+  if (sku.mainStoneSize) parts.push(sku.mainStoneSize.replace(/mm$/i, '') + 'MM')
+  if (sku.size) parts.push('S' + sku.size)
+  if (sku.chainLength) parts.push('L' + sku.chainLength.replace(/cm$/i, ''))
+  return parts.join('-')
 }
 
 /** 计算价格区间 */
@@ -408,6 +434,7 @@ export async function getProductDetail(productId: string): Promise<ProductDetail
       skuCode: sku.skuCode,
       gemType: sku.gemType,
       metalColor: sku.metalColor,
+      mainStoneSize: sku.mainStoneSize,
       size: sku.size,
       chainLength: sku.chainLength,
       stockStatus: sku.stockStatus,
@@ -526,11 +553,12 @@ export async function createProduct(
       // 创建 SKUs
       if (validatedData.skus.length > 0) {
         await tx.productSku.createMany({
-          data: validatedData.skus.map((sku, index) => ({
+          data: validatedData.skus.map((sku) => ({
             productId: newProduct.id,
-            skuCode: generateSkuCode(validatedData.spuCode, index),
+            skuCode: generateSkuCode(validatedData.spuCode, sku),
             gemType: sku.gemType,
             metalColor: sku.metalColor,
+            mainStoneSize: sku.mainStoneSize,
             size: sku.size,
             chainLength: sku.chainLength,
             stockStatus: sku.stockStatus ?? 'IN_STOCK',
@@ -691,11 +719,12 @@ export async function updateProduct(
         })
 
         await tx.productSku.createMany({
-          data: validatedData.skus.map((sku, index) => ({
+          data: validatedData.skus.map((sku) => ({
             productId,
-            skuCode: generateSkuCode(existingProduct.spuCode, index),
+            skuCode: generateSkuCode(existingProduct.spuCode, sku),
             gemType: sku.gemType,
             metalColor: sku.metalColor,
+            mainStoneSize: sku.mainStoneSize,
             size: sku.size,
             chainLength: sku.chainLength,
             stockStatus: sku.stockStatus ?? 'IN_STOCK',

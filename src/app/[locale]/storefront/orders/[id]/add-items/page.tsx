@@ -55,6 +55,7 @@ export default function AddItemsPage({ params }: AddItemsPageProps) {
   // SKU selection state
   const [selectedGemType, setSelectedGemType] = useState<GemType | null>(null);
   const [selectedMetalColor, setSelectedMetalColor] = useState<MetalColor | null>(null);
+  const [selectedMainStoneSize, setSelectedMainStoneSize] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedChainLength, setSelectedChainLength] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -120,6 +121,7 @@ export default function AddItemsPage({ params }: AddItemsPageProps) {
         // Reset selection
         setSelectedGemType(null);
         setSelectedMetalColor(null);
+        setSelectedMainStoneSize(null);
         setSelectedSize(null);
         setSelectedChainLength(null);
         setQuantity(1);
@@ -137,15 +139,16 @@ export default function AddItemsPage({ params }: AddItemsPageProps) {
 
   const getSelectedSkuId = (): string | null => {
     if (!selectedProduct || !selectedGemType || !selectedMetalColor) return null;
-    
+      
     const sku = selectedProduct.skus.find(
       (s) =>
         s.gemType === selectedGemType &&
         s.metalColor === selectedMetalColor &&
+        (selectedMainStoneSize === null || s.mainStoneSize === selectedMainStoneSize) &&
         (selectedSize === null || s.size === selectedSize) &&
         (selectedChainLength === null || s.chainLength === selectedChainLength)
     );
-    
+  
     return sku?.id || null;
   };
 
@@ -400,10 +403,12 @@ export default function AddItemsPage({ params }: AddItemsPageProps) {
                   product={selectedProduct}
                   selectedGemType={selectedGemType}
                   selectedMetalColor={selectedMetalColor}
+                  selectedMainStoneSize={selectedMainStoneSize}
                   selectedSize={selectedSize}
                   selectedChainLength={selectedChainLength}
                   onGemTypeChange={setSelectedGemType}
                   onMetalColorChange={setSelectedMetalColor}
+                  onMainStoneSizeChange={setSelectedMainStoneSize}
                   onSizeChange={setSelectedSize}
                   onChainLengthChange={setSelectedChainLength}
                 />

@@ -53,6 +53,7 @@ export default function ProductDetailPage() {
   // SKU 选择状态
   const [selectedGemType, setSelectedGemType] = useState<GemType | null>(null);
   const [selectedMetalColor, setSelectedMetalColor] = useState<MetalColor | null>(null);
+  const [selectedMainStoneSize, setSelectedMainStoneSize] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedChainLength, setSelectedChainLength] = useState<string | null>(null);
 
@@ -102,6 +103,7 @@ export default function ProductDetailPage() {
         product,
         selectedGemType,
         selectedMetalColor,
+        selectedMainStoneSize,
         selectedSize,
         selectedChainLength
       )
@@ -113,6 +115,7 @@ export default function ProductDetailPage() {
         product,
         selectedGemType,
         selectedMetalColor,
+        selectedMainStoneSize,
         selectedSize,
         selectedChainLength
       )
@@ -155,62 +158,73 @@ export default function ProductDetailPage() {
   // 处理加入购物车
   const handleAddToCart = () => {
     if (!product) return;
-    
+      
     // 验证必要选项是否已选择
     // 如果商品有多个宝石类型选项，必须选择
     if (product.gemTypes.length > 1 && !selectedGemType) {
       toast.error(t("selectGemType"));
       return;
     }
-    
+      
     // 如果商品有多个金属底色选项，必须选择
     if (product.metalColors.length > 1 && !selectedMetalColor) {
       toast.error(t("selectMetalColor"));
       return;
     }
-    
-    // 获取所有可选的尺寸和链长度
+      
+    // 获取所有可选的主石尺寸、尺寸和链长度
+    const availableMainStoneSizes = Array.from(
+      new Set(product.skus.map((sku) => sku.mainStoneSize).filter(Boolean))
+    ) as string[];
     const availableSizes = Array.from(
       new Set(product.skus.map((sku) => sku.size).filter(Boolean))
     ) as string[];
     const availableChainLengths = Array.from(
       new Set(product.skus.map((sku) => sku.chainLength).filter(Boolean))
     ) as string[];
-    
+      
+    // 如果商品有主石尺寸选项，必须选择
+    if (availableMainStoneSizes.length > 0 && !selectedMainStoneSize) {
+      toast.error(t("selectMainStoneSize"));
+      return;
+    }
+      
     // 如果商品有尺码选项，必须选择
     if (availableSizes.length > 0 && !selectedSize) {
       toast.error(t("selectSize"));
       return;
     }
-    
+      
     // 如果商品有链长度选项，必须选择
     if (availableChainLengths.length > 0 && !selectedChainLength) {
       toast.error(t("selectChainLength"));
       return;
     }
-    
+      
     // 查找匹配的 SKU
     const selectedSku = product.skus.find(sku => {
       const gemMatch = selectedGemType ? sku.gemType === selectedGemType : true;
       const metalMatch = selectedMetalColor ? sku.metalColor === selectedMetalColor : true;
+      const mainStoneSizeMatch = selectedMainStoneSize ? sku.mainStoneSize === selectedMainStoneSize : true;
       const sizeMatch = selectedSize ? sku.size === selectedSize : true;
       const chainMatch = selectedChainLength ? sku.chainLength === selectedChainLength : true;
-      return gemMatch && metalMatch && sizeMatch && chainMatch;
+      return gemMatch && metalMatch && mainStoneSizeMatch && sizeMatch && chainMatch;
     });
-    
+      
     if (!selectedSku) {
       toast.error(t("selectAllOptions"));
       return;
     }
-    
+      
     // 构建 SKU 描述
     const gemTypeLabels = getGemTypeLabels(t);
     const skuDescParts: string[] = [];
     if (selectedGemType) skuDescParts.push(gemTypeLabels[selectedGemType]);
     if (selectedMetalColor) skuDescParts.push(selectedMetalColor);
+    if (selectedMainStoneSize) skuDescParts.push(`${selectedMainStoneSize}mm`);
     if (selectedSize) skuDescParts.push(`${t("size")} ${selectedSize}`);
     if (selectedChainLength) skuDescParts.push(`${selectedChainLength}cm`);
-    
+      
     // 添加商品到购物车
     addItem({
       skuId: selectedSku.id,
@@ -222,7 +236,7 @@ export default function ProductDetailPage() {
       thumbnailUrl: product.images[0]?.thumbnailUrl || undefined,
       referencePriceSar: selectedSku.referencePriceSar?.toString(),
     });
-    
+  
     toast.success(t("added"));
   };
 
@@ -362,10 +376,12 @@ export default function ProductDetailPage() {
             product={product}
             selectedGemType={selectedGemType}
             selectedMetalColor={selectedMetalColor}
+            selectedMainStoneSize={selectedMainStoneSize}
             selectedSize={selectedSize}
             selectedChainLength={selectedChainLength}
             onGemTypeChange={setSelectedGemType}
             onMetalColorChange={setSelectedMetalColor}
+            onMainStoneSizeChange={setSelectedMainStoneSize}
             onSizeChange={setSelectedSize}
             onChainLengthChange={setSelectedChainLength}
           />
