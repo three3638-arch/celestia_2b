@@ -334,7 +334,7 @@ export function SkuSelector({
                       "hover:border-primary/50 hover:text-primary"
                   )}
                 >
-                  {mainStoneSize}mm
+                  {mainStoneSize}
                 </button>
               );
             })}

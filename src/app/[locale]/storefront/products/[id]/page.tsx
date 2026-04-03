@@ -221,7 +221,7 @@ export default function ProductDetailPage() {
     const skuDescParts: string[] = [];
     if (selectedGemType) skuDescParts.push(gemTypeLabels[selectedGemType]);
     if (selectedMetalColor) skuDescParts.push(selectedMetalColor);
-    if (selectedMainStoneSize) skuDescParts.push(`${selectedMainStoneSize}mm`);
+    if (selectedMainStoneSize) skuDescParts.push(`${selectedMainStoneSize}`);
     if (selectedSize) skuDescParts.push(`${t("size")} ${selectedSize}`);
     if (selectedChainLength) skuDescParts.push(`${selectedChainLength}cm`);
       

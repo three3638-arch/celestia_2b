@@ -8,8 +8,9 @@
 - [translator.ts](file://src/lib/excel/translator.ts)
 - [sku-expander.ts](file://src/lib/excel/sku-expander.ts)
 - [image.ts](file://src/lib/image.ts)
-- [generate-import-template.ts](file://scripts/generate-import-template.ts)
+- [convert-xindeyi-excel.ts](file://scripts/convert-xindeyi-excel.ts)
 - [analyze-excel.ts](file://scripts/analyze-excel.ts)
+- [generate-import-template.ts](file://scripts/generate-import-template.ts)
 - [schema.prisma](file://prisma/schema.prisma)
 - [db.ts](file://src/lib/db.ts)
 - [index.ts](file://src/types/index.ts)
@@ -23,6 +24,8 @@
 ## 更新摘要
 **变更内容**
 - 新增了全面的调试诊断日志系统，增强Excel解析器和图像提取过程的可观测性
+- 新增供应商数据转换脚本convert-xindeyi-excel.ts，专门处理新德艺供应商Excel转换
+- scripts/analyze-excel.ts从xlsx迁移到ExcelJS，提升解析兼容性
 - 更新了Docker部署配置，优化生产环境的稳定性和性能
 - 改进了Next.js依赖配置，支持原生模块的生产环境部署
 - 增强了错误处理和故障排除能力
@@ -33,18 +36,19 @@
 3. [核心组件](#核心组件)
 4. [架构概览](#架构概览)
 5. [详细组件分析](#详细组件分析)
-6. [调试诊断系统](#调试诊断系统)
-7. [部署配置](#部署配置)
-8. [依赖关系分析](#依赖关系分析)
-9. [性能考虑](#性能考虑)
-10. [故障排除指南](#故障排除指南)
-11. [结论](#结论)
+6. [供应商数据转换系统](#供应商数据转换系统)
+7. [调试诊断系统](#调试诊断系统)
+8. [部署配置](#部署配置)
+9. [依赖关系分析](#依赖关系分析)
+10. [性能考虑](#性能考虑)
+11. [故障排除指南](#故障排除指南)
+12. [结论](#结论)
 
 ## 项目概述
 
 Excel导入系统是一个完整的商品数据批量导入解决方案，专为珠宝电商平台设计。该系统支持从Excel文件中批量导入商品信息，包括商品基本信息、SKU规格、图片资源等，并提供完整的数据验证、AI翻译和数据库持久化功能。
 
-系统采用现代化的技术栈，基于Next.js构建，使用Prisma ORM进行数据库操作，支持多语言国际化和云端存储集成。最新版本增强了调试诊断能力和生产环境稳定性。
+系统采用现代化的技术栈，基于Next.js构建，使用Prisma ORM进行数据库操作，支持多语言国际化和云端存储集成。最新版本增强了调试诊断能力和生产环境稳定性，新增了供应商数据转换功能，支持多种供应商格式的自动转换。
 
 ## 系统架构
 
@@ -58,6 +62,7 @@ subgraph "API层"
 UploadAPI[上传API]
 ImportAPI[导入API]
 DebugLog[调试日志系统]
+SupplierConverter[供应商转换器]
 end
 subgraph "业务逻辑层"
 Parser[Excel解析器]
@@ -65,11 +70,13 @@ Validator[数据验证器]
 Translator[AI翻译器]
 SKUExpander[SKU展开器]
 DebugParser[诊断解析器]
+SupplierConverterEngine[转换引擎]
 end
 subgraph "数据处理层"
 ImageProcessor[图片处理器]
 TaskStore[任务存储]
 DebugImage[图像诊断]
+SupplierDataProcessor[供应商数据处理]
 end
 subgraph "数据访问层"
 Prisma[Prisma ORM]
@@ -78,29 +85,30 @@ end
 subgraph "存储层"
 R2[Cloudflare R2]
 Temp[临时文件存储]
+SupplierData[供应商数据缓存]
 end
 UI --> Upload
 Upload --> UploadAPI
 UploadAPI --> DebugLog
 UploadAPI --> Parser
 Parser --> DebugParser
-Parser --> Validator
-Validator --> Translator
-Translator --> SKUExpander
-SKUExpander --> ImageProcessor
-ImageProcessor --> DebugImage
-ImageProcessor --> TaskStore
+Parser --> SupplierConverterEngine
+SupplierConverterEngine --> SupplierDataProcessor
+SupplierDataProcessor --> DebugImage
+SupplierDataProcessor --> TaskStore
 TaskStore --> ImportAPI
 ImportAPI --> Prisma
 Prisma --> Database
 ImageProcessor --> R2
 UploadAPI --> Temp
+SupplierConverter --> SupplierData
 ```
 
 **图表来源**
 - [route.ts:22-88](file://src/app/api/upload/excel/route.ts#L22-L88)
 - [import.ts:248-395](file://src/lib/actions/import.ts#L248-L395)
 - [parser.ts:64-112](file://src/lib/excel/parser.ts#L64-L112)
+- [convert-xindeyi-excel.ts:280-478](file://scripts/convert-xindeyi-excel.ts#L280-L478)
 
 ## 核心组件
 
@@ -128,10 +136,14 @@ UploadAPI --> Temp
 ### 8. 调试诊断系统
 **新增**：提供全面的日志记录和监控能力，支持生产环境的问题排查。
 
+### 9. 供应商数据转换系统
+**新增**：专门处理不同供应商格式的Excel文件转换，支持新德艺等供应商的报价表转换为系统导入模板。
+
 **章节来源**
 - [route.ts:18-88](file://src/app/api/upload/excel/route.ts#L18-L88)
 - [parser.ts:48-135](file://src/lib/excel/parser.ts#L48-L135)
 - [import.ts:245-395](file://src/lib/actions/import.ts#L245-L395)
+- [convert-xindeyi-excel.ts:1-561](file://scripts/convert-xindeyi-excel.ts#L1-L561)
 
 ## 架构概览
 
@@ -143,6 +155,7 @@ participant Client as 客户端
 participant API as API接口
 participant Debug as 调试系统
 participant Parser as 解析器
+participant SupplierConverter as 供应商转换器
 participant Validator as 验证器
 participant Translator as 翻译器
 participant DB as 数据库
@@ -150,7 +163,9 @@ Client->>API : 上传Excel文件
 API->>Debug : 记录上传日志
 API->>Parser : 解析Excel内容
 Parser->>Debug : 记录解析诊断
-Parser->>Validator : 验证数据完整性
+Parser->>SupplierConverter : 转换供应商数据
+SupplierConverter->>SupplierConverter : 处理供应商特定格式
+SupplierConverter->>Validator : 验证转换后数据
 Validator->>Translator : 翻译文本内容
 Translator->>DB : 存储商品数据
 DB-->>API : 返回存储结果
@@ -161,6 +176,7 @@ API-->>Client : 返回导入状态
 - [route.ts:22-88](file://src/app/api/upload/excel/route.ts#L22-L88)
 - [import.ts:248-395](file://src/lib/actions/import.ts#L248-L395)
 - [parser.ts:64-112](file://src/lib/excel/parser.ts#L64-L112)
+- [convert-xindeyi-excel.ts:280-478](file://scripts/convert-xindeyi-excel.ts#L280-L478)
 
 ## 详细组件分析
 
@@ -332,6 +348,65 @@ CATEGORY ||--o{ PRODUCT : contains
 **章节来源**
 - [schema.prisma:120-189](file://prisma/schema.prisma#L120-L189)
 
+## 供应商数据转换系统
+
+**新增** 系统现在包含完整的供应商数据转换功能，专门处理不同供应商格式的Excel文件：
+
+### 转换器架构
+
+```mermaid
+flowchart TD
+Start([开始转换]) --> LoadSource[加载源Excel文件]
+LoadSource --> ParseSheets[解析工作表]
+ParseSheets --> ExtractImages[提取嵌入图片]
+ExtractImages --> ProcessRows[处理数据行]
+ProcessRows --> ParseAttributes[解析商品属性]
+ParseAttributes --> MergeDuplicates[合并重复SPU]
+MergeDuplicates --> CalculatePrices[计算价格范围]
+CalculatePrices --> CreateTemplate[创建导入模板]
+CreateTemplate --> SplitFiles[拆分大文件]
+SplitFiles --> SaveOutput[保存输出文件]
+SaveOutput --> End([转换完成])
+```
+
+**图表来源**
+- [convert-xindeyi-excel.ts:280-478](file://scripts/convert-xindeyi-excel.ts#L280-L478)
+
+### 新德艺供应商转换器
+
+**新增** 专门处理新德艺供应商的Excel转换：
+
+#### 核心特性
+1. **智能SPU识别**：从混合格式的编号列中提取SPU编号和商品名称
+2. **多格式尺寸解析**：支持克拉、分、毫米等多种尺寸格式
+3. **智能价格计算**：根据汇率和倍数系数计算参考价格
+4. **自动图片提取**：从Excel中提取嵌入的图片数据
+5. **重复数据合并**：将同一SPU的不同行数据合并处理
+
+#### 转换流程
+
+```mermaid
+sequenceDiagram
+participant Source as 源Excel文件
+participant Converter as 转换器
+participant Parser as 数据解析器
+participant PriceCalc as 价格计算器
+participant Output as 输出模板
+Source->>Converter : 读取Excel文件
+Converter->>Parser : 解析SPU编号和名称
+Parser->>Parser : 提取多行数据
+Parser->>PriceCalc : 计算价格范围
+PriceCalc->>Output : 生成导入模板
+Output->>Output : 拆分大文件
+Output-->>Source : 返回转换结果
+```
+
+**图表来源**
+- [convert-xindeyi-excel.ts:348-443](file://scripts/convert-xindeyi-excel.ts#L348-L443)
+
+**章节来源**
+- [convert-xindeyi-excel.ts:1-561](file://scripts/convert-xindeyi-excel.ts#L1-L561)
+
 ## 调试诊断系统
 
 **新增** 系统现在包含全面的调试诊断日志系统，显著增强了生产环境的可观测性：
@@ -353,6 +428,11 @@ CATEGORY ||--o{ PRODUCT : contains
    - 图片位置信息
    - 图片处理状态
 
+4. **供应商转换诊断日志**
+   - **新增**：供应商数据转换过程的详细日志
+   - **新增**：SPU识别成功率统计
+   - **新增**：价格计算准确性验证
+
 ### 日志记录机制
 
 ```mermaid
@@ -364,7 +444,9 @@ ImageExtract --> PositionLog[记录图片位置]
 PositionLog --> Processing[处理图片]
 Processing --> Success[记录处理成功]
 Processing --> Error[记录处理错误]
-Success --> End([完成])
+Success --> SupplierCheck[检查供应商转换]
+SupplierCheck --> SupplierLog[记录转换日志]
+SupplierLog --> End([完成])
 Error --> End
 ```
 
@@ -435,9 +517,11 @@ end
 subgraph "原生模块支持"
 ExcelJS[ExcelJS]
 Sharp[Sharp]
+SupplierConverter[供应商转换器]
 end
 External --> ExcelJS
 External --> Sharp
+External --> SupplierConverter
 Output --> Standalone
 Images --> RemotePatterns
 ```
@@ -474,6 +558,11 @@ Docker[docker-compose]
 Nginx[nginx]
 Alpine[alpine linux]
 end
+subgraph "供应商转换依赖"
+TSNode[ts-node]
+FS[fs]
+Path[path]
+end
 ExcelParser --> ExcelJS
 ExcelParser --> ExcelJS2
 ImportSystem --> Prisma
@@ -487,6 +576,9 @@ UIComponents --> TailwindCSS
 UIComponents --> RadixUI
 Docker --> Alpine
 Docker --> Nginx
+SupplierConverter --> TSNode
+SupplierConverter --> FS
+SupplierConverter --> Path
 ```
 
 **图表来源**
@@ -507,6 +599,8 @@ Docker --> Nginx
 5. **图片处理**：异步处理图片，避免阻塞主线程
 6. **日志优化**：调试日志仅在开发环境启用，生产环境保持性能
 7. **原生模块优化**：通过serverExternalPackages配置优化原生模块加载
+8. **供应商转换优化**：**新增**：批量处理供应商数据，支持大文件分块处理
+9. **Excel解析优化**：**新增**：ExcelJS替代xlsx，提升解析性能和兼容性
 
 ## 故障排除指南
 
@@ -538,14 +632,25 @@ Docker --> Nginx
    - **新增**：检查R2存储配置
    - **新增**：验证图片格式支持
 
+6. **供应商转换失败**
+   - **新增**：检查源Excel文件格式
+   - **新增**：验证供应商数据完整性
+   - **新增**：查看转换器日志了解具体错误
+
+7. **ExcelJS迁移问题**
+   - **新增**：确认ExcelJS版本兼容性
+   - **新增**：检查工作表结构变化
+   - **新增**：验证图片提取逻辑
+
 **章节来源**
 - [import.ts:368-395](file://src/lib/actions/import.ts#L368-L395)
 - [route.ts:54-59](file://src/app/api/upload/excel/route.ts#L54-L59)
 - [parser.ts:64-112](file://src/lib/excel/parser.ts#L64-L112)
+- [convert-xindeyi-excel.ts:280-478](file://scripts/convert-xindeyi-excel.ts#L280-L478)
 
 ## 结论
 
-Excel导入系统是一个功能完整、架构清晰的商品数据批量导入解决方案。最新版本在原有优势基础上，新增了全面的调试诊断能力和优化的生产环境配置：
+Excel导入系统是一个功能完整、架构清晰的商品数据批量导入解决方案。最新版本在原有优势基础上，新增了全面的调试诊断能力和优化的生产环境配置，并引入了供应商数据转换功能：
 
 ### 主要优势
 
@@ -556,12 +661,16 @@ Excel导入系统是一个功能完整、架构清晰的商品数据批量导入
 5. **完善的错误处理**：友好的错误提示和恢复机制
 6. **全面的调试诊断**：生产环境可观测性显著提升
 7. **优化的部署配置**：确保系统在生产环境中的稳定运行
+8. **供应商数据转换**：**新增**：支持多种供应商格式的自动转换
+9. **ExcelJS迁移**：**新增**：提升解析性能和兼容性
 
 ### 技术创新
 
 1. **调试诊断系统**：为Excel解析器和图像提取过程提供了全面的日志记录
-2. **生产环境优化**：通过Docker多阶段构建和Next.js配置优化提升性能
-3. **可观测性增强**：支持生产环境的问题快速定位和解决
-4. **原生模块支持**：通过serverExternalPackages配置优化原生模块加载
+2. **供应商转换引擎**：**新增**：专门处理不同供应商格式的Excel文件转换
+3. **ExcelJS迁移**：**新增**：从xlsx迁移到ExcelJS，提升解析性能
+4. **生产环境优化**：通过Docker多阶段构建和Next.js配置优化提升性能
+5. **可观测性增强**：支持生产环境的问题快速定位和解决
+6. **原生模块支持**：通过serverExternalPackages配置优化原生模块加载
 
 系统采用现代化的技术栈和最佳实践，具有良好的可扩展性和维护性，能够满足珠宝电商行业的复杂需求，并为未来的功能扩展奠定了坚实的基础。
