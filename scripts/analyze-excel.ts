@@ -1,21 +1,43 @@
-import XLSX from 'xlsx';
-import * as fs from 'fs';
+import ExcelJS from 'exceljs';
 
-const workbook = XLSX.readFile('products/副本新德艺报价1月14.xlsx');
-console.log('Sheets:', workbook.SheetNames);
-
-// 分析每个sheet
-for (const sheetName of workbook.SheetNames) {
-  const sheet = workbook.Sheets[sheetName];
-  const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-  console.log(`\n=== Sheet: ${sheetName} ===`);
-  console.log(`Row count: ${data.length}`);
-  console.log('First 10 rows:');
-  for (let i = 0; i < Math.min(10, data.length); i++) {
-    console.log(`Row ${i}: `, JSON.stringify(data[i]));
+async function verifyOutput() {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile('products/output/新德艺导入模板_1.xlsx');
+  
+  const sheet = workbook.worksheets[0];
+  const rows = sheet.getSheetValues();
+  
+  console.log('=== 验证输出文件（合并后）===\n');
+  
+  // 查找有多主石尺寸的商品
+  console.log('查找有多主石尺寸的商品（主石尺寸包含逗号）:\n');
+  let foundCount = 0;
+  for (let i = 2; i <= rows.length && foundCount < 5; i++) {
+    const row = rows[i] as any[];
+    const stoneSize = row?.[7];
+    if (stoneSize && String(stoneSize).includes(',')) {
+      foundCount++;
+      console.log(`\n第${i}行:`);
+      console.log(`  SPU编号: ${row?.[1]}`);
+      console.log(`  名称: ${row?.[3]}`);
+      console.log(`  品类: ${row?.[4]}`);
+      console.log(`  主石尺寸: ${stoneSize}`);
+      console.log(`  参考价最低: ${row?.[10]}`);
+      console.log(`  参考价最高: ${row?.[11]}`);
+    }
   }
-  console.log('Last 5 rows:');
-  for (let i = Math.max(0, data.length - 5); i < data.length; i++) {
-    console.log(`Row ${i}: `, JSON.stringify(data[i]));
+  
+  if (foundCount === 0) {
+    console.log('未找到有多主石尺寸的商品，显示前5行:\n');
+    for (let i = 2; i <= 6; i++) {
+      const row = rows[i] as any[];
+      console.log(`\n第${i}行:`);
+      console.log(`  SPU编号: ${row?.[1]}`);
+      console.log(`  名称: ${row?.[3]}`);
+      console.log(`  品类: ${row?.[4]}`);
+      console.log(`  主石尺寸: ${row?.[7]}`);
+    }
   }
 }
+
+verifyOutput().catch(console.error);

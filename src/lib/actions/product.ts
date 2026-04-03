@@ -364,7 +364,10 @@ export async function getProducts(
     maxPriceSar: product.maxPriceSar?.toString() ?? null,
     primaryImageUrl: product.images[0]?.url ?? null,
     primaryImageThumbnailUrl: product.images[0]?.thumbnailUrl ?? null,
-    gemTypes: product.gemTypes,
+    gemTypes: [...product.gemTypes].sort((a, b) => {
+      const priority: Record<string, number> = { MOISSANITE: 0, ZIRCON: 1 }
+      return (priority[a] ?? 99) - (priority[b] ?? 99)
+    }),
     metalColors: product.metalColors,
   }))
 
@@ -423,7 +426,10 @@ export async function getProductDetail(productId: string): Promise<ProductDetail
     descriptionAr: product.descriptionAr,
     supplier: product.supplier,
     supplierLink: product.supplierLink,
-    gemTypes: product.gemTypes,
+    gemTypes: [...product.gemTypes].sort((a, b) => {
+      const priority: Record<string, number> = { MOISSANITE: 0, ZIRCON: 1 }
+      return (priority[a] ?? 99) - (priority[b] ?? 99)
+    }),
     metalColors: product.metalColors,
     status: product.status,
     minPriceSar: product.minPriceSar?.toString() ?? null,

@@ -12,6 +12,9 @@
 - [package.json](file://package.json)
 - [next.config.ts](file://next.config.ts)
 - [README.md](file://README.md)
+- [excel/route.ts](file://src/app/api/upload/excel/route.ts)
+- [image/route.ts](file://src/app/api/upload/image/route.ts)
+- [r2.ts](file://src/lib/r2.ts)
 </cite>
 
 ## 更新摘要
@@ -20,6 +23,7 @@
 - 新增阿里云镜像加速配置的详细说明
 - 完善生产环境docker-compose配置分析
 - 增强构建性能和网络访问效率的配置说明
+- **新增** Dockerfile中上传目录权限设置的详细说明，确保容器化环境中文件写入的可靠性
 
 ## 目录
 1. [简介](#简介)
@@ -37,7 +41,7 @@
 
 本文件提供了Celestia项目的Docker容器化部署完整指南。该项目是一个基于Next.js的应用程序，使用PostgreSQL作为数据库，并通过Nginx进行反向代理。文档涵盖了docker-compose.yml配置文件的完整结构、PostgreSQL数据库服务配置、环境变量设置、数据卷挂载、容器健康检查机制、重启策略和端口映射等关键内容。
 
-**更新** 本版本反映了Node.js从20升级到22的重大变更，以及新增的阿里云镜像加速配置，显著提升了构建性能和网络访问效率。
+**更新** 本版本反映了Node.js从20升级到22的重大变更，以及新增的阿里云镜像加速配置，显著提升了构建性能和网络访问效率。**新增** Dockerfile中上传目录权限设置的改进，确保容器化环境中文件写入的可靠性和安全性。
 
 ## 项目结构
 
@@ -71,14 +75,14 @@ PKG --> SRC
 ```
 
 **图表来源**
-- [Dockerfile:1-83](file://Dockerfile#L1-L83)
+- [Dockerfile:1-86](file://Dockerfile#L1-L86)
 - [docker-compose.yml:1-22](file://docker-compose.yml#L1-L22)
-- [docker-compose.prod.yml:1-68](file://docker-compose.prod.yml#L1-L68)
+- [docker-compose.prod.yml:1-69](file://docker-compose.prod.yml#L1-L69)
 
 **章节来源**
-- [Dockerfile:1-83](file://Dockerfile#L1-L83)
+- [Dockerfile:1-86](file://Dockerfile#L1-L86)
 - [docker-compose.yml:1-22](file://docker-compose.yml#L1-L22)
-- [docker-compose.prod.yml:1-68](file://docker-compose.prod.yml#L1-L68)
+- [docker-compose.prod.yml:1-69](file://docker-compose.prod.yml#L1-L69)
 
 ## 核心组件
 
@@ -113,7 +117,7 @@ Nginx配置文件提供HTTP到Next.js应用的反向代理功能：
 **章节来源**
 - [docker-compose.yml:2-18](file://docker-compose.yml#L2-L18)
 - [docker-compose.prod.yml:2-35](file://docker-compose.prod.yml#L2-L35)
-- [Dockerfile:2-83](file://Dockerfile#L2-L83)
+- [Dockerfile:2-86](file://Dockerfile#L2-L86)
 
 ## 架构概览
 
@@ -142,12 +146,12 @@ END
 APP --> ALIYUN
 subgraph "存储层"
 VOLUME[postgres_data<br/>持久化卷]
-end
+END
 DB --> VOLUME
 ```
 
 **图表来源**
-- [docker-compose.prod.yml:1-68](file://docker-compose.prod.yml#L1-L68)
+- [docker-compose.prod.yml:1-69](file://docker-compose.prod.yml#L1-L69)
 - [Dockerfile:5-12](file://Dockerfile#L5-L12)
 - [Dockerfile:30-37](file://Dockerfile#L30-L37)
 
@@ -309,11 +313,12 @@ BUILD_APP --> RUNNER_STAGE[阶段3: 运行容器]
 RUNNER_STAGE --> NON_ROOT[创建非root用户]
 NON_ROOT --> COPY_OUTPUT[复制构建输出]
 COPY_OUTPUT --> EXPOSE_PORT[暴露端口3000]
-EXPOSE_PORT --> READY[应用就绪]
+EXPOSE_PORT --> UPLOAD_DIR[创建上传目录并授权]
+UPLOAD_DIR --> READY[应用就绪]
 ```
 
 **图表来源**
-- [Dockerfile:1-83](file://Dockerfile#L1-L83)
+- [Dockerfile:1-86](file://Dockerfile#L1-L86)
 
 #### 阿里云镜像加速配置
 
@@ -335,8 +340,53 @@ EXPOSE_PORT --> READY[应用就绪]
 - **最小权限原则**: 仅授予运行应用所需的权限
 - **镜像大小优化**: 通过多阶段构建减少最终镜像大小
 
+#### **新增** 上传目录权限设置
+
+**更新** Dockerfile中新增的上传目录权限设置，确保容器化环境中文件写入的可靠性：
+
+- **目录创建**: `mkdir -p /app/public/uploads` 创建上传目录
+- **权限设置**: `chown -R nextjs:nodejs /app/public` 设置目录所有权
+- **用户映射**: 使用nextjs用户组确保文件写入权限
+- **安全隔离**: 通过chown确保只有应用用户可以写入上传目录
+
 **章节来源**
-- [Dockerfile:2-83](file://Dockerfile#L2-L83)
+- [Dockerfile:2-86](file://Dockerfile#L2-L86)
+
+### 文件上传功能配置
+
+**新增** 详细的文件上传功能配置说明：
+
+#### Excel文件上传
+
+Excel文件上传功能支持管理员用户上传Excel文件到临时目录：
+
+- **临时目录**: `public/uploads/temp` 用于存储临时上传的Excel文件
+- **权限控制**: 仅管理员用户可以访问上传接口
+- **文件类型验证**: 支持`.xlsx`和`.xls`格式
+- **文件大小限制**: 默认支持较大的Excel文件
+
+#### 图片上传
+
+图片上传功能支持管理员用户上传图片并自动处理：
+
+- **图片处理**: 自动生成缩略图和原图
+- **格式支持**: 支持JPEG、PNG、WebP、GIF格式
+- **大小限制**: 最大10MB文件大小
+- **异步处理**: 并发上传原图和缩略图
+
+#### R2存储集成
+
+**更新** R2存储配置支持Cloudflare R2对象存储：
+
+- **R2配置**: 支持`R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`
+- **本地回退**: 当R2未配置时自动回退到本地文件系统
+- **统一接口**: 通过`uploadToR2`函数统一处理文件上传
+- **URL生成**: 自动生成公开访问URL
+
+**章节来源**
+- [excel/route.ts:1-89](file://src/app/api/upload/excel/route.ts#L1-L89)
+- [image/route.ts:1-111](file://src/app/api/upload/image/route.ts#L1-L111)
+- [r2.ts:1-123](file://src/lib/r2.ts#L1-L123)
 
 ## 依赖关系分析
 
@@ -351,10 +401,12 @@ NODE[Node.js 22 Runtime]
 PG[PostgreSQL Driver]
 PRISMA[Prisma Client]
 ALIYUN[阿里云镜像加速]
-end
+R2[Cloudflare R2 SDK]
+END
 subgraph "应用层"
 NEXTJS[Next.js Framework]
 APP[业务逻辑]
+UPLOAD[文件上传模块]
 end
 subgraph "数据库层"
 DB[(PostgreSQL Database)]
@@ -368,6 +420,8 @@ PRISMA --> PG
 PG --> DB
 NGINX --> NEXTJS
 APP --> NEXTJS
+UPLOAD --> R2
+UPLOAD --> APP
 ALIYUN --> NODE
 ```
 
@@ -386,10 +440,12 @@ subgraph "核心模块"
 DB_LIB[src/lib/db.ts]
 JWT_CONFIG[src/lib/jwt-config.ts]
 NEXT_CONFIG[next.config.ts]
+R2_LIB[src/lib/r2.ts]
 end
 subgraph "业务模块"
 AUTH_API[src/app/api/auth/]
 UPLOAD_API[src/app/api/upload/]
+IMPORT_ACTION[src/lib/actions/import.ts]
 end
 subgraph "配置模块"
 PRISMA_SCHEMA[prisma/schema.prisma]
@@ -399,6 +455,8 @@ DB_LIB --> PRISMA_SCHEMA
 DB_LIB --> PRISMA_CONFIG
 AUTH_API --> DB_LIB
 UPLOAD_API --> DB_LIB
+UPLOAD_API --> R2_LIB
+IMPORT_ACTION --> UPLOAD_API
 JWT_CONFIG --> AUTH_API
 NEXT_CONFIG --> AUTH_API
 ```
@@ -436,6 +494,15 @@ NEXT_CONFIG --> AUTH_API
 - **构建时间减少**: 国内网络环境下构建速度提升50-80%
 - **依赖安装优化**: 通过多阶段构建减少不必要的依赖
 
+### **新增** 文件上传性能优化
+
+**更新** Dockerfile中上传目录权限设置对性能的影响：
+
+- **I/O性能**: 正确的目录权限设置避免文件写入失败
+- **并发处理**: 多个上传任务可以并行执行
+- **磁盘空间**: 通过合理的目录结构优化磁盘使用
+- **缓存策略**: 上传的文件可以被Nginx正确缓存
+
 ### 资源限制建议
 
 虽然当前配置未包含资源限制，但建议在生产环境中添加：
@@ -457,6 +524,7 @@ app:
 **章节来源**
 - [Dockerfile:5-12](file://Dockerfile#L5-L12)
 - [Dockerfile:30-37](file://Dockerfile#L30-L37)
+- [Dockerfile:68-69](file://Dockerfile#L68-L69)
 
 ## 故障排除指南
 
@@ -492,7 +560,7 @@ app:
 
 **常见问题**: 应用启动失败或性能异常
 **排查步骤**:
-1. 查看应用容器日志: `docker-compose logs app`
+1. 查看应用容器日志: `docker-compose logs -f app`
 2. 检查内存使用情况
 3. 验证环境变量配置
 4. 确认阿里云镜像配置是否生效
@@ -502,6 +570,21 @@ app:
 - 验证阿里云镜像配置
 - 确认依赖安装完整性
 - 检查健康检查配置
+
+### **新增** 文件上传权限问题
+
+**常见问题**: 上传文件失败或权限错误
+**排查步骤**:
+1. 检查上传目录权限: `ls -la /app/public/uploads`
+2. 查看应用日志中的文件系统错误
+3. 验证Dockerfile中的权限设置
+4. 确认非root用户权限
+
+**解决方案**:
+- 确认`chown -R nextjs:nodejs /app/public`执行成功
+- 检查目录是否存在且可写
+- 验证Docker容器用户映射
+- 确认Nginx也具有读取权限
 
 ### 健康检查失败
 
@@ -519,8 +602,9 @@ app:
 
 **章节来源**
 - [docker-compose.yml:14-18](file://docker-compose.yml#L14-L18)
-- [docker-compose.prod.yml:31-35](file://docker-compose.prod.yml#L31-L35)
+- [docker-compose.prod.yml:31-36](file://docker-compose.prod.yml#L31-L36)
 - [nginx.conf:74-84](file://docker/nginx/nginx.conf#L74-L84)
+- [Dockerfile:68-69](file://Dockerfile#L68-L69)
 
 ## 结论
 
@@ -531,8 +615,9 @@ app:
 - **现代化的应用架构**: 基于Next.js框架，使用Prisma ORM进行数据库操作
 - **优化的构建流程**: Node.js 22多阶段构建，配合阿里云镜像加速
 - **可扩展的设计**: 支持环境变量配置和容器编排
+- **完善的文件上传支持**: 通过Dockerfile中的权限设置确保容器化环境中文件写入的可靠性
 
-**更新** 本版本的Node.js 22升级和阿里云镜像加速配置显著提升了应用性能和构建效率，为开发者和运维人员提供了更高效、更稳定的容器化部署方案。
+**更新** 本版本的Node.js 22升级、阿里云镜像加速配置和上传目录权限设置显著提升了应用性能、构建效率和文件写入可靠性，为开发者和运维人员提供了更高效、更稳定、更安全的容器化部署方案。
 
 ## 附录
 
@@ -546,7 +631,13 @@ app:
 | JWT_EXPIRES_IN | JWT过期时间 | 7d | 否 |
 | NEXT_PUBLIC_BASE_URL | 前端基础URL | 无 | 否 |
 | R2_ACCOUNT_ID | Cloudflare R2账户ID | 无 | 否 |
+| R2_ACCESS_KEY_ID | R2访问密钥ID | 无 | 否 |
+| R2_SECRET_ACCESS_KEY | R2密钥 | 无 | 否 |
+| R2_BUCKET_NAME | R2存储桶名称 | celestia | 否 |
+| R2_PUBLIC_URL | R2公共URL | 无 | 否 |
 | ALIMT_ACCESS_KEY_ID | 阿里云翻译密钥ID | 无 | 否 |
+| ALIMT_ACCESS_KEY_SECRET | 阿里云翻译密钥 | 无 | 否 |
+| ALIMT_REGION | 阿里云翻译区域 | cn-hangzhou | 否 |
 
 ### 端口映射参考
 
@@ -588,7 +679,18 @@ docker-compose -f docker-compose.prod.yml up -d
 - **构建性能提升**: 在国内网络环境下构建速度提升50-80%
 - **镜像源稳定性**: 阿里云镜像源提供更好的网络稳定性和可用性
 
+### **新增** 上传目录权限配置
+
+**新增** Dockerfile中上传目录权限设置的详细说明：
+
+- **目录创建**: `mkdir -p /app/public/uploads` 确保上传目录存在
+- **权限设置**: `chown -R nextjs:nodejs /app/public` 设置正确的所有权
+- **用户映射**: 使用nextjs用户确保文件写入权限
+- **安全隔离**: 通过chown确保只有应用用户可以写入上传目录
+- **Nginx兼容**: 确保Nginx也能正确读取上传的文件
+
 **章节来源**
 - [Dockerfile:5-12](file://Dockerfile#L5-L12)
 - [Dockerfile:30-37](file://Dockerfile#L30-L37)
+- [Dockerfile:68-69](file://Dockerfile#L68-L69)
 - [docker-compose.prod.yml:23-26](file://docker-compose.prod.yml#L23-L26)

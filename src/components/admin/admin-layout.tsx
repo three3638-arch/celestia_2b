@@ -9,7 +9,6 @@ import {
   Package,
   ShoppingBag,
   Users,
-  Settings,
   LogOut,
   Menu,
 } from "lucide-react";
@@ -32,7 +31,6 @@ const sidebarItems = [
   { href: "/admin/products", icon: Package, label: "商品管理" },
   { href: "/admin/orders", icon: ShoppingBag, label: "订单管理" },
   { href: "/admin/customers", icon: Users, label: "客户管理" },
-  { href: "/admin/settings", icon: Settings, label: "系统设置" },
 ];
 
 const pageTitles: Record<string, string> = {
@@ -40,7 +38,6 @@ const pageTitles: Record<string, string> = {
   "/admin/products": "商品管理",
   "/admin/orders": "订单管理",
   "/admin/customers": "客户管理",
-  "/admin/settings": "系统设置",
 };
 
 export function AdminLayout({ children }: AdminLayoutProps) {
