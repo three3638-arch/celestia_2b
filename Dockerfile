@@ -65,6 +65,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# 创建上传目录并授权
+RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public
+
 # 复制 Prisma schema 和 migrations（用于运行时迁移）
 COPY --from=builder /app/prisma ./prisma
 
