@@ -63,6 +63,7 @@ export async function parseExcel(filePath: string): Promise<ParsedProduct[]> {
 
   // 获取所有图片信息
   const images = worksheet.getImages()
+  console.log('[Excel Parser] Images found in worksheet:', images.length)
   const imageList: ImageInfo[] = []
 
   // 构建图片列表：根据图片位置记录列和行
@@ -86,6 +87,7 @@ export async function parseExcel(filePath: string): Promise<ParsedProduct[]> {
       })
     }
   }
+  console.log('[Excel Parser] Processed imageList:', imageList.length, 'items')
 
   // 遍历行数据（从第2行开始，跳过表头）
   worksheet.eachRow((row, rowNumber) => {
