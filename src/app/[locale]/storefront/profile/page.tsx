@@ -63,21 +63,10 @@ export default function ProfilePage() {
   };
 
   // 处理退出登录
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setIsLoggingOut(true);
-    try {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-      
-      if (response.ok) {
-        window.location.href = `/${locale}/storefront/login`;
-      }
-    } catch {
-      // 静默处理错误
-    } finally {
-      setIsLoggingOut(false);
-    }
+    // 直接导航到 GET 登出端点，服务端同时清除 cookie 并重定向到登录页
+    window.location.href = `/api/auth/logout?locale=${locale}`;
   };
 
   if (isLoading) {

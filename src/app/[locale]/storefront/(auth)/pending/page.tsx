@@ -22,28 +22,10 @@ export default function PendingPage() {
   
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const handleSignOut = async () => {
+  const handleSignOut = () => {
     setIsSigningOut(true);
-    
-    try {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      
-      const result: LogoutResponse = await response.json();
-      
-      if (result.success) {
-        window.location.href = `/${locale}/storefront/login`;
-      }
-    } catch {
-      // 即使失败也跳转
-      window.location.href = `/${locale}/storefront/login`;
-    } finally {
-      setIsSigningOut(false);
-    }
+    // 直接导航到 GET 登出端点，服务端同时清除 cookie 并重定向到登录页
+    window.location.href = `/api/auth/logout?locale=${locale}`;
   };
 
   return (
