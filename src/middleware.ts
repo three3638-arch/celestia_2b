@@ -37,6 +37,13 @@ const intlMiddleware = createIntlMiddleware({
   localePrefix: 'always',
 })
 
+// 构建生产环境安全的重定向 URL（Nginx 反代后 request.url 是容器内网地址）
+function buildRedirectUrl(path: string, request: NextRequest): URL {
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
+  const protocol = request.headers.get('x-forwarded-proto') || 'https'
+  return new URL(path, `${protocol}://${host}`)
+}
+
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
   
@@ -61,8 +68,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     if (pathname === '/admin/login') {
       if (payload?.role === 'ADMIN') {
         // 已是管理员，重定向到 admin 首页
-        const adminUrl = new URL('/admin', request.url)
-        return NextResponse.redirect(adminUrl)
+        return NextResponse.redirect(buildRedirectUrl('/admin', request))
       }
       // 未登录或非管理员，允许访问登录页
       return NextResponse.next()
@@ -70,14 +76,12 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
     if (!payload) {
       // 未登录，重定向到 admin 登录页
-      const loginUrl = new URL('/admin/login', request.url)
-      return NextResponse.redirect(loginUrl)
+      return NextResponse.redirect(buildRedirectUrl('/admin/login', request))
     }
 
     if (payload.role !== 'ADMIN') {
       // CUSTOMER 访问 admin 路由，重定向到商品列表（使用默认 locale）
-      const productsUrl = new URL(`/${defaultLocale}/storefront/products`, request.url)
-      return NextResponse.redirect(productsUrl)
+      return NextResponse.redirect(buildRedirectUrl(`/${defaultLocale}/storefront/products`, request))
     }
 
     return NextResponse.next()
@@ -91,7 +95,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     const intlResponse = intlMiddleware(request)
     
     // 如果 next-intl 返回重定向（如 locale 不匹配），直接返回
-    if (intlResponse.status !== 200) {
+    if (intlResponse.status >= 300 && intlResponse.status < 400) {
       return intlResponse
     }
     
@@ -108,16 +112,13 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       if (payload) {
         // 已登录，根据角色重定向
         if (payload.role === 'ADMIN') {
-          const adminUrl = new URL('/admin', request.url)
-          return NextResponse.redirect(adminUrl)
+          return NextResponse.redirect(buildRedirectUrl('/admin', request))
         } else {
           // CUSTOMER: 根据状态重定向
           if (payload.status === 'PENDING') {
-            const pendingUrl = new URL(`/${locale}/storefront/pending`, request.url)
-            return NextResponse.redirect(pendingUrl)
+            return NextResponse.redirect(buildRedirectUrl(`/${locale}/storefront/pending`, request))
           } else {
-            const productsUrl = new URL(`/${locale}/storefront/products`, request.url)
-            return NextResponse.redirect(productsUrl)
+            return NextResponse.redirect(buildRedirectUrl(`/${locale}/storefront/products`, request))
           }
         }
       }
@@ -126,16 +127,14 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     
     // 其他 storefront 页面需要登录
     if (!payload) {
-      const loginUrl = new URL(`/${locale}/storefront/login`, request.url)
-      return NextResponse.redirect(loginUrl)
+      return NextResponse.redirect(buildRedirectUrl(`/${locale}/storefront/login`, request))
     }
     
     // PENDING 用户限制：只能访问 /pending 页面
     if (payload.status === 'PENDING') {
       if (!isPendingPage) {
         // PENDING 用户访问非 pending 页面，重定向到 pending 页面
-        const pendingUrl = new URL(`/${locale}/storefront/pending`, request.url)
-        return NextResponse.redirect(pendingUrl)
+        return NextResponse.redirect(buildRedirectUrl(`/${locale}/storefront/pending`, request))
       }
       // 允许访问 pending 页面
       return intlResponse
@@ -143,8 +142,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     
     // ACTIVE 用户：访问 pending 页面时重定向到首页
     if (payload.status === 'ACTIVE' && isPendingPage) {
-      const storefrontUrl = new URL(`/${locale}/storefront`, request.url)
-      return NextResponse.redirect(storefrontUrl)
+      return NextResponse.redirect(buildRedirectUrl(`/${locale}/storefront`, request))
     }
     
     return intlResponse
@@ -159,6 +157,7 @@ export const config = {
   matcher: [
     '/api/:path*',
     '/admin/:path*',
+    '/:locale/storefront',
     '/:locale/storefront/:path*',
   ],
 }

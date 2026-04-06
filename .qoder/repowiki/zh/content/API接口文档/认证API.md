@@ -16,6 +16,13 @@
 - [src/types/index.ts](file://src/types/index.ts)
 </cite>
 
+## 更新摘要
+**变更内容**
+- 新增GET方法的登出端点，提供更可靠的登出机制
+- GET端点在单个HTTP响应中同时清除cookie并重定向到登录页
+- 消除客户端-服务器通信的竞态条件
+- 保持POST方法登出端点的向后兼容性
+
 ## 目录
 1. [简介](#简介)
 2. [项目结构](#项目结构)
@@ -76,31 +83,32 @@ API_Login --> Types
 API_Reg --> Types
 ```
 
-图表来源
-- [src/app/api/auth/login/route.ts:1-76](file://src/app/api/auth/login/route.ts#L1-L76)
-- [src/app/api/auth/register/route.ts:1-85](file://src/app/api/auth/register/route.ts#L1-L85)
-- [src/app/api/auth/logout/route.ts:1-21](file://src/app/api/auth/logout/route.ts#L1-L21)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+**图表来源**
+- [src/app/api/auth/login/route.ts:1-78](file://src/app/api/auth/login/route.ts#L1-L78)
+- [src/app/api/auth/register/route.ts:1-89](file://src/app/api/auth/register/route.ts#L1-L89)
+- [src/app/api/auth/logout/route.ts:1-50](file://src/app/api/auth/logout/route.ts#L1-L50)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 - [src/lib/jwt-config.ts:1-9](file://src/lib/jwt-config.ts#L1-L9)
 - [src/lib/password.ts:1-18](file://src/lib/password.ts#L1-L18)
-- [src/middleware.ts:1-147](file://src/middleware.ts#L1-L147)
-- [src/types/index.ts:1-60](file://src/types/index.ts#L1-L60)
+- [src/middleware.ts:1-165](file://src/middleware.ts#L1-L165)
+- [src/types/index.ts:1-61](file://src/types/index.ts#L1-L61)
 
-章节来源
-- [src/app/api/auth/login/route.ts:1-76](file://src/app/api/auth/login/route.ts#L1-L76)
-- [src/app/api/auth/register/route.ts:1-85](file://src/app/api/auth/register/route.ts#L1-L85)
-- [src/app/api/auth/logout/route.ts:1-21](file://src/app/api/auth/logout/route.ts#L1-L21)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+**章节来源**
+- [src/app/api/auth/login/route.ts:1-78](file://src/app/api/auth/login/route.ts#L1-L78)
+- [src/app/api/auth/register/route.ts:1-89](file://src/app/api/auth/register/route.ts#L1-L89)
+- [src/app/api/auth/logout/route.ts:1-50](file://src/app/api/auth/logout/route.ts#L1-L50)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 - [src/lib/jwt-config.ts:1-9](file://src/lib/jwt-config.ts#L1-L9)
 - [src/lib/password.ts:1-18](file://src/lib/password.ts#L1-L18)
-- [src/middleware.ts:1-147](file://src/middleware.ts#L1-L147)
-- [src/types/index.ts:1-60](file://src/types/index.ts#L1-L60)
+- [src/middleware.ts:1-165](file://src/middleware.ts#L1-L165)
+- [src/types/index.ts:1-61](file://src/types/index.ts#L1-L61)
 
 ## 核心组件
 - 认证API路由
   - 登录：POST /api/auth/login
   - 注册：POST /api/auth/register
-  - 注销：POST /api/auth/logout
+  - 注销：POST /api/auth/logout（JSON响应，保持兼容）
+  - 注销：GET /api/auth/logout?locale=xx（推荐的可靠登出方式）
 - 认证工具库
   - JWT签发与校验、Cookie设置与清除、当前用户查询
 - JWT配置
@@ -115,23 +123,23 @@ API_Reg --> Types
   - Server Actions：getSession、logout
 - 前端页面
   - 注册表单提交至 /api/auth/register
-  - 待审核页面触发 /api/auth/logout
+  - 待审核页面触发 /api/auth/logout（GET方法）
 
-章节来源
-- [src/app/api/auth/login/route.ts:1-76](file://src/app/api/auth/login/route.ts#L1-L76)
-- [src/app/api/auth/register/route.ts:1-85](file://src/app/api/auth/register/route.ts#L1-L85)
-- [src/app/api/auth/logout/route.ts:1-21](file://src/app/api/auth/logout/route.ts#L1-L21)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+**章节来源**
+- [src/app/api/auth/login/route.ts:1-78](file://src/app/api/auth/login/route.ts#L1-L78)
+- [src/app/api/auth/register/route.ts:1-89](file://src/app/api/auth/register/route.ts#L1-L89)
+- [src/app/api/auth/logout/route.ts:1-50](file://src/app/api/auth/logout/route.ts#L1-L50)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 - [src/lib/jwt-config.ts:1-9](file://src/lib/jwt-config.ts#L1-L9)
 - [src/lib/password.ts:1-18](file://src/lib/password.ts#L1-L18)
 - [src/lib/validations/auth.ts:1-17](file://src/lib/validations/auth.ts#L1-L17)
-- [src/middleware.ts:1-147](file://src/middleware.ts#L1-L147)
-- [src/lib/actions/auth.ts:1-20](file://src/lib/actions/auth.ts#L1-L20)
-- [src/app/[locale]/storefront/(auth)/register/page.tsx](file://src/app/[locale]/storefront/(auth)/register/page.tsx#L1-L213)
-- [src/app/[locale]/storefront/(auth)/pending/page.tsx](file://src/app/[locale]/storefront/(auth)/pending/page.tsx#L1-L49)
+- [src/middleware.ts:1-165](file://src/middleware.ts#L1-L165)
+- [src/lib/actions/auth.ts:1-22](file://src/lib/actions/auth.ts#L1-L22)
+- [src/app/[locale]/storefront/(auth)/register/page.tsx](file://src/app/[locale]/storefront/(auth)/register/page.tsx#L1-L211)
+- [src/app/[locale]/storefront/(auth)/pending/page.tsx](file://src/app/[locale]/storefront/(auth)/pending/page.tsx#L1-L85)
 
 ## 架构总览
-认证系统采用“API路由 + 工具库 + 中间件”的分层设计：
+认证系统采用"API路由 + 工具库 + 中间件"的分层设计：
 - API路由负责接收请求、参数校验、数据库交互与响应封装
 - 工具库封装JWT与Cookie操作、密码处理与当前用户查询
 - 中间件在请求进入阶段进行统一鉴权与路由重定向
@@ -163,12 +171,12 @@ A-->>R : "完成"
 R-->>C : "返回会话用户信息"
 ```
 
-图表来源
-- [src/app/api/auth/register/route.ts:1-85](file://src/app/api/auth/register/route.ts#L1-L85)
+**图表来源**
+- [src/app/api/auth/register/route.ts:1-89](file://src/app/api/auth/register/route.ts#L1-L89)
 - [src/lib/validations/auth.ts:1-17](file://src/lib/validations/auth.ts#L1-L17)
 - [src/lib/password.ts:1-18](file://src/lib/password.ts#L1-L18)
 - [src/lib/db.ts:1-18](file://src/lib/db.ts#L1-L18)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 - [src/lib/jwt-config.ts:1-9](file://src/lib/jwt-config.ts#L1-L9)
 
 ## 详细组件分析
@@ -222,20 +230,20 @@ end
 end
 ```
 
-图表来源
-- [src/app/api/auth/login/route.ts:1-76](file://src/app/api/auth/login/route.ts#L1-L76)
+**图表来源**
+- [src/app/api/auth/login/route.ts:1-78](file://src/app/api/auth/login/route.ts#L1-L78)
 - [src/lib/validations/auth.ts:1-17](file://src/lib/validations/auth.ts#L1-L17)
 - [src/lib/password.ts:1-18](file://src/lib/password.ts#L1-L18)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 - [src/lib/jwt-config.ts:1-9](file://src/lib/jwt-config.ts#L1-L9)
 
-章节来源
-- [src/app/api/auth/login/route.ts:1-76](file://src/app/api/auth/login/route.ts#L1-L76)
+**章节来源**
+- [src/app/api/auth/login/route.ts:1-78](file://src/app/api/auth/login/route.ts#L1-L78)
 - [src/lib/validations/auth.ts:1-17](file://src/lib/validations/auth.ts#L1-L17)
 - [src/lib/password.ts:1-18](file://src/lib/password.ts#L1-L18)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 - [src/lib/jwt-config.ts:1-9](file://src/lib/jwt-config.ts#L1-L9)
-- [src/types/index.ts:1-60](file://src/types/index.ts#L1-L60)
+- [src/types/index.ts:1-61](file://src/types/index.ts#L1-L61)
 
 ### 注册接口
 - 方法与URL
@@ -286,51 +294,57 @@ R-->>C : "201 成功 + 会话用户信息"
 end
 ```
 
-图表来源
-- [src/app/api/auth/register/route.ts:1-85](file://src/app/api/auth/register/route.ts#L1-L85)
+**图表来源**
+- [src/app/api/auth/register/route.ts:1-89](file://src/app/api/auth/register/route.ts#L1-L89)
 - [src/lib/validations/auth.ts:1-17](file://src/lib/validations/auth.ts#L1-L17)
 - [src/lib/password.ts:1-18](file://src/lib/password.ts#L1-L18)
 - [src/lib/db.ts:1-18](file://src/lib/db.ts#L1-L18)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 - [src/lib/jwt-config.ts:1-9](file://src/lib/jwt-config.ts#L1-L9)
 
-章节来源
-- [src/app/api/auth/register/route.ts:1-85](file://src/app/api/auth/register/route.ts#L1-L85)
+**章节来源**
+- [src/app/api/auth/register/route.ts:1-89](file://src/app/api/auth/register/route.ts#L1-L89)
 - [src/lib/validations/auth.ts:1-17](file://src/lib/validations/auth.ts#L1-L17)
 - [src/lib/password.ts:1-18](file://src/lib/password.ts#L1-L18)
 - [src/lib/db.ts:1-18](file://src/lib/db.ts#L1-L18)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 - [src/lib/jwt-config.ts:1-9](file://src/lib/jwt-config.ts#L1-L9)
-- [src/types/index.ts:1-60](file://src/types/index.ts#L1-L60)
+- [src/types/index.ts:1-61](file://src/types/index.ts#L1-L61)
 
 ### 注销接口
+**更新** 新增了更可靠的GET方法登出端点
+
 - 方法与URL
-  - POST /api/auth/logout
-- 行为
-  - 清除认证Cookie celestia-token
-  - 返回成功消息
+  - POST /api/auth/logout（JSON响应，保持向后兼容）
+  - GET /api/auth/logout?locale=xx（推荐的可靠登出方式）
+- 行为差异
+  - POST方法：返回JSON响应，清除认证Cookie
+  - GET方法：在同一HTTP响应中同时清除cookie并重定向到登录页
 - 响应
-  - 200：注销成功
-  - 500：服务器内部错误
+  - POST：200 + {"success":true,"message":"Logout successful"} 或 500
+  - GET：302重定向到 /{locale}/storefront/login
 
 ```mermaid
 sequenceDiagram
 participant C as "客户端"
 participant O as "注销路由<br/>/api/auth/logout"
 participant AT as "认证工具"
-C->>O : "POST /api/auth/logout"
+participant MW as "中间件"
+C->>O : "GET /api/auth/logout?locale=en"
 O->>AT : "清除Cookie"
 AT-->>O : "完成"
-O-->>C : "200 成功"
+O->>O : "构建登录URL"
+O-->>C : "302 重定向到登录页"
+Note over C,MW : "GET方法消除了竞态条件"
 ```
 
-图表来源
-- [src/app/api/auth/logout/route.ts:1-21](file://src/app/api/auth/logout/route.ts#L1-L21)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+**图表来源**
+- [src/app/api/auth/logout/route.ts:26-49](file://src/app/api/auth/logout/route.ts#L26-L49)
+- [src/lib/auth.ts:51-68](file://src/lib/auth.ts#L51-L68)
 
-章节来源
-- [src/app/api/auth/logout/route.ts:1-21](file://src/app/api/auth/logout/route.ts#L1-L21)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+**章节来源**
+- [src/app/api/auth/logout/route.ts:1-50](file://src/app/api/auth/logout/route.ts#L1-L50)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 
 ### JWT 令牌机制
 - 签发
@@ -359,15 +373,15 @@ Allow --> End(["结束"])
 Deny --> End
 ```
 
-图表来源
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+**图表来源**
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 - [src/lib/jwt-config.ts:1-9](file://src/lib/jwt-config.ts#L1-L9)
-- [src/middleware.ts:1-147](file://src/middleware.ts#L1-L147)
+- [src/middleware.ts:1-165](file://src/middleware.ts#L1-L165)
 
-章节来源
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+**章节来源**
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 - [src/lib/jwt-config.ts:1-9](file://src/lib/jwt-config.ts#L1-L9)
-- [src/middleware.ts:1-147](file://src/middleware.ts#L1-L147)
+- [src/middleware.ts:1-165](file://src/middleware.ts#L1-L165)
 
 ### 中间件与权限控制
 - 公开路由
@@ -415,11 +429,11 @@ AA --> |是| AB["重定向到 /"]
 AA --> |否| AC["放行"]
 ```
 
-图表来源
-- [src/middleware.ts:1-147](file://src/middleware.ts#L1-L147)
+**图表来源**
+- [src/middleware.ts:1-165](file://src/middleware.ts#L1-L165)
 
-章节来源
-- [src/middleware.ts:1-147](file://src/middleware.ts#L1-L147)
+**章节来源**
+- [src/middleware.ts:1-165](file://src/middleware.ts#L1-L165)
 
 ### 服务端动作（Server Actions）
 - getSession
@@ -428,20 +442,20 @@ AA --> |否| AC["放行"]
 - logout
   - 作用：清除认证Cookie并重定向到登录页
 
-章节来源
-- [src/lib/actions/auth.ts:1-20](file://src/lib/actions/auth.ts#L1-L20)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+**章节来源**
+- [src/lib/actions/auth.ts:1-22](file://src/lib/actions/auth.ts#L1-L22)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 
 ### 前端交互要点
 - 注册页面
   - 使用 react-hook-form + zodResolver 进行前端校验
   - 提交至 /api/auth/register，成功后跳转到 /{locale}/storefront/pending
 - 待审核页面
-  - 点击注销按钮，调用 /api/auth/logout，成功后跳转到 /{locale}/storefront/login
+  - 点击注销按钮，调用 /api/auth/logout（GET方法），服务端同时清除cookie并重定向到登录页
 
-章节来源
-- [src/app/[locale]/storefront/(auth)/register/page.tsx](file://src/app/[locale]/storefront/(auth)/register/page.tsx#L1-L213)
-- [src/app/[locale]/storefront/(auth)/pending/page.tsx](file://src/app/[locale]/storefront/(auth)/pending/page.tsx#L1-L49)
+**章节来源**
+- [src/app/[locale]/storefront/(auth)/register/page.tsx](file://src/app/[locale]/storefront/(auth)/register/page.tsx#L1-L211)
+- [src/app/[locale]/storefront/(auth)/pending/page.tsx](file://src/app/[locale]/storefront/(auth)/pending/page.tsx#L1-L85)
 
 ## 依赖关系分析
 - 组件耦合
@@ -471,31 +485,32 @@ MW["middleware.ts"] --> JWT
 MW --> AUTH
 ```
 
-图表来源
-- [src/app/api/auth/login/route.ts:1-76](file://src/app/api/auth/login/route.ts#L1-L76)
-- [src/app/api/auth/register/route.ts:1-85](file://src/app/api/auth/register/route.ts#L1-L85)
-- [src/app/api/auth/logout/route.ts:1-21](file://src/app/api/auth/logout/route.ts#L1-L21)
+**图表来源**
+- [src/app/api/auth/login/route.ts:1-78](file://src/app/api/auth/login/route.ts#L1-L78)
+- [src/app/api/auth/register/route.ts:1-89](file://src/app/api/auth/register/route.ts#L1-L89)
+- [src/app/api/auth/logout/route.ts:1-50](file://src/app/api/auth/logout/route.ts#L1-L50)
 - [src/lib/validations/auth.ts:1-17](file://src/lib/validations/auth.ts#L1-L17)
 - [src/lib/password.ts:1-18](file://src/lib/password.ts#L1-L18)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 - [src/lib/jwt-config.ts:1-9](file://src/lib/jwt-config.ts#L1-L9)
-- [src/middleware.ts:1-147](file://src/middleware.ts#L1-L147)
+- [src/middleware.ts:1-165](file://src/middleware.ts#L1-L165)
 
-章节来源
-- [src/app/api/auth/login/route.ts:1-76](file://src/app/api/auth/login/route.ts#L1-L76)
-- [src/app/api/auth/register/route.ts:1-85](file://src/app/api/auth/register/route.ts#L1-L85)
-- [src/app/api/auth/logout/route.ts:1-21](file://src/app/api/auth/logout/route.ts#L1-L21)
+**章节来源**
+- [src/app/api/auth/login/route.ts:1-78](file://src/app/api/auth/login/route.ts#L1-L78)
+- [src/app/api/auth/register/route.ts:1-89](file://src/app/api/auth/register/route.ts#L1-L89)
+- [src/app/api/auth/logout/route.ts:1-50](file://src/app/api/auth/logout/route.ts#L1-L50)
 - [src/lib/validations/auth.ts:1-17](file://src/lib/validations/auth.ts#L1-L17)
 - [src/lib/password.ts:1-18](file://src/lib/password.ts#L1-L18)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
 - [src/lib/jwt-config.ts:1-9](file://src/lib/jwt-config.ts#L1-L9)
-- [src/middleware.ts:1-147](file://src/middleware.ts#L1-L147)
+- [src/middleware.ts:1-165](file://src/middleware.ts#L1-L165)
 
 ## 性能考量
 - JWT过期时间较长（7天），可降低频繁刷新成本，但需配合安全策略（如IP绑定、设备指纹）与最小权限原则
 - 密码加密使用固定盐轮数，确保安全性与一致性
 - 中间件在每次请求进行JWT校验，建议在网关层或边缘缓存减少重复计算
 - 数据库查询集中在登录/注册/注销，注意索引优化（phone唯一索引）
+- **新增** GET方法登出端点消除了客户端-服务器通信的竞态条件，提高了登出的可靠性
 
 ## 故障排查指南
 - 常见错误与处理
@@ -507,19 +522,21 @@ MW --> AUTH
   - 生产环境务必启用HTTPS与secure Cookie
   - 建议增加登录失败次数限制与验证码
   - 建议实现JWT黑名单或短期令牌+刷新令牌方案
+  - **新增** 推荐使用GET方法登出端点，因为它在同一HTTP响应中完成cookie清除和重定向，避免竞态条件
 - 会话管理
   - 客户端应避免在本地存储明文令牌
   - 前端注销后应清理本地状态并重定向
+  - **新增** GET方法登出端点自动处理cookie清除和重定向，无需客户端额外逻辑
 
-章节来源
-- [src/app/api/auth/login/route.ts:1-76](file://src/app/api/auth/login/route.ts#L1-L76)
-- [src/app/api/auth/register/route.ts:1-85](file://src/app/api/auth/register/route.ts#L1-L85)
-- [src/app/api/auth/logout/route.ts:1-21](file://src/app/api/auth/logout/route.ts#L1-L21)
-- [src/lib/auth.ts:1-98](file://src/lib/auth.ts#L1-L98)
-- [src/middleware.ts:1-147](file://src/middleware.ts#L1-L147)
+**章节来源**
+- [src/app/api/auth/login/route.ts:1-78](file://src/app/api/auth/login/route.ts#L1-L78)
+- [src/app/api/auth/register/route.ts:1-89](file://src/app/api/auth/register/route.ts#L1-L89)
+- [src/app/api/auth/logout/route.ts:1-50](file://src/app/api/auth/logout/route.ts#L1-L50)
+- [src/lib/auth.ts:1-116](file://src/lib/auth.ts#L1-L116)
+- [src/middleware.ts:1-165](file://src/middleware.ts#L1-L165)
 
 ## 结论
-本认证体系以API路由为核心，结合参数校验、密码加密、JWT与Cookie管理及中间件权限控制，形成完整的前后端协作流程。建议在现有基础上完善令牌刷新、风控与审计能力，以满足更严格的生产安全要求。
+本认证体系以API路由为核心，结合参数校验、密码加密、JWT与Cookie管理及中间件权限控制，形成完整的前后端协作流程。**最新更新**引入了GET方法的登出端点，提供了更可靠的登出机制，消除了客户端-服务器通信的竞态条件。建议在现有基础上完善令牌刷新、风控与审计能力，以满足更严格的生产安全要求。
 
 ## 附录
 - 请求与响应示例（文本描述）
@@ -528,10 +545,14 @@ MW --> AUTH
       - Body: {"phone":"...","password":"..."}
       - 成功：200，Body: {"success":true,"data":{"id":"...","phone":"...","name":"...","role":"CUSTOMER|ADMIN","status":"PENDING|ACTIVE",...},"message":"登录成功"}
       - 失败：400/401/500，Body: {"success":false,"error":"..."}
-    - 注销
+    - 注销（POST）
       - 请求：POST /api/auth/logout
       - 成功：200，Body: {"success":true,"message":"注销成功"}
       - 失败：500，Body: {"success":false,"error":"内部错误"}
+    - 注销（GET）**新增**
+      - 请求：GET /api/auth/logout?locale=en
+      - 成功：302，重定向到 /en/storefront/login
+      - 行为：在同一HTTP响应中同时清除cookie并重定向
     - 注册
       - 请求：POST /api/auth/register
       - 成功：201，Body: {"success":true,"data":{"id":"...","phone":"...","name":"...","role":"CUSTOMER","status":"PENDING",...},"message":"注册成功"}
@@ -539,5 +560,5 @@ MW --> AUTH
 - 类型定义参考
   - ApiResponse、JwtPayload、SessionUser
 
-章节来源
-- [src/types/index.ts:1-60](file://src/types/index.ts#L1-L60)
+**章节来源**
+- [src/types/index.ts:1-61](file://src/types/index.ts#L1-L61)

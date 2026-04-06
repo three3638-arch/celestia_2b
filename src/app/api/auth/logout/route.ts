@@ -28,8 +28,14 @@ export async function POST(): Promise<NextResponse<ApiResponse<null>>> {
  * 在同一个 HTTP 响应中完成 cookie 清除和重定向，最可靠
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const locale = request.nextUrl.searchParams.get('locale') || 'en'
-  const loginUrl = new URL(`/${locale}/storefront/login`, request.url)
+  const rawLocale = request.nextUrl.searchParams.get('locale') || 'en'
+  const validLocales = ['en', 'ar', 'zh']
+  const locale = validLocales.includes(rawLocale) ? rawLocale : 'en'
+
+  // 使用 x-forwarded-host 获取真实域名（Nginx 反代后 request.url 是容器内网地址）
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
+  const protocol = request.headers.get('x-forwarded-proto') || 'https'
+  const loginUrl = `${protocol}://${host}/${locale}/storefront/login`
   const response = NextResponse.redirect(loginUrl)
 
   const domain = process.env.NODE_ENV === 'production'
