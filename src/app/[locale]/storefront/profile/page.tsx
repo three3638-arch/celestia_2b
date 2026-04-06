@@ -59,7 +59,7 @@ export default function ProfilePage() {
     
     // 替换 URL 中的 locale 前缀
     const newPathname = pathname.replace(/^\/(en|ar|zh)/, `/${newLocale}`);
-    router.push(newPathname);
+    window.location.href = newPathname;
   };
 
   // 处理退出登录
