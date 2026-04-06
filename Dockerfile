@@ -79,6 +79,12 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
+# 全局安装 Prisma CLI（与 package.json 中 prisma 版本一致），便于 exec 内执行 migrate，避免 npx 每次联网下载
+USER root
+RUN npm config set registry https://registry.npmmirror.com \
+  && npm install -g prisma@7.6.0 \
+  && npm cache clean --force
+
 USER nextjs
 
 EXPOSE 3000
