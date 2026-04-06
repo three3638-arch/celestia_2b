@@ -952,9 +952,9 @@ export async function getAdminProducts(params: {
           select: { id: true },
         },
         images: {
-          where: { isPrimary: true },
+          orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
           take: 1,
-          select: { url: true },
+          select: { url: true, thumbnailUrl: true },
         },
       },
     })
@@ -973,7 +973,8 @@ export async function getAdminProducts(params: {
       maxPriceSar: product.maxPriceSar?.toString() ?? null,
       skuCount: product.skus.length,
       status: product.status,
-      primaryImageUrl: product.images[0]?.url ?? null,
+      primaryImageUrl:
+        product.images[0]?.thumbnailUrl || product.images[0]?.url || null,
       createdAt: product.createdAt,
     }))
 

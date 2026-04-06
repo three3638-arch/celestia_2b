@@ -53,12 +53,22 @@ RUN npx prisma generate
 RUN --mount=type=cache,target=/app/.next/cache \
     npm run build
 
+# 独立阶段：仅安装 prisma CLI 及其依赖（供 migrate deploy），避免运行镜像内 npx 每次下载
+FROM node:22-alpine AS prisma-tools
+WORKDIR /tools
+RUN echo '{"dependencies":{"prisma":"7.6.0"}}' > package.json \
+  && npm config set registry https://registry.npmmirror.com \
+  && npm install --omit=dev \
+  && npm cache clean --force
+
 # 阶段3: 运行
 FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Prisma CLI（migrate deploy）；置于 PATH 前部，exec 内可直接执行 prisma
+ENV PATH="/app/.prisma-cli/node_modules/.bin:${PATH}"
 
 # 创建非 root 用户
 RUN addgroup --system --gid 1001 nodejs
@@ -79,11 +89,11 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# 全局安装 Prisma CLI（与 package.json 中 prisma 版本一致），便于 exec 内执行 migrate，避免 npx 每次联网下载
+# Prisma CLI 可执行文件与依赖（与上面应用内 @prisma 并存，互不影响）
+COPY --from=prisma-tools /tools/node_modules /app/.prisma-cli/node_modules
+
 USER root
-RUN npm config set registry https://registry.npmmirror.com \
-  && npm install -g prisma@7.6.0 \
-  && npm cache clean --force
+RUN chown -R nextjs:nodejs /app/.prisma-cli
 
 USER nextjs
 

@@ -11,6 +11,7 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import {
   Plus,
   FileSpreadsheet,
@@ -23,6 +24,7 @@ import {
   PackageX,
   Download,
   ExternalLink,
+  ImageIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -67,6 +69,32 @@ const columns: ColumnDef<AdminProductListItem>[] = [
     cell: ({ row }) => (
       <span className="font-mono text-sm">{row.original.spuCode}</span>
     ),
+  },
+  {
+    id: "primaryImage",
+    header: "主图",
+    cell: ({ row }) => {
+      const url = row.original.primaryImageUrl;
+      if (!url) {
+        return (
+          <div className="flex h-12 w-12 items-center justify-center rounded-md border border-dashed border-border bg-muted/50 text-muted-foreground">
+            <ImageIcon className="h-5 w-5" />
+          </div>
+        );
+      }
+      return (
+        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
+          <Image
+            src={url}
+            alt=""
+            width={48}
+            height={48}
+            className="h-12 w-12 object-cover"
+            unoptimized
+          />
+        </div>
+      );
+    },
   },
   {
     accessorKey: "nameZh",
