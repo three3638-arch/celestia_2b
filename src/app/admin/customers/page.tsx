@@ -224,16 +224,27 @@ export default function CustomersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       {customer.status === 'PENDING' ? (
-                        <Button
-                          size="sm"
-                          onClick={() => handleApprove(customer)}
-                          className="bg-primary text-primary-foreground hover:bg-accent"
-                        >
-                          <UserCheck className="h-4 w-4 mr-1" />
-                          审核
-                        </Button>
+                        <div className="flex flex-wrap gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            onClick={() => handleApprove(customer)}
+                            className="bg-primary text-primary-foreground hover:bg-accent"
+                          >
+                            <UserCheck className="h-4 w-4 mr-1" />
+                            审核
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResetPassword(customer)}
+                            className="border-border bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            <Key className="h-4 w-4 mr-1" />
+                            修改密码
+                          </Button>
+                        </div>
                       ) : (
-                        <div className="flex gap-2 justify-end">
+                        <div className="flex flex-wrap gap-2 justify-end">
                           <Button
                             size="sm"
                             variant="outline"
@@ -250,7 +261,7 @@ export default function CustomersPage() {
                             className="border-border bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
                           >
                             <Key className="h-4 w-4 mr-1" />
-                            重置密码
+                            修改密码
                           </Button>
                         </div>
                       )}

@@ -264,6 +264,17 @@ export async function resetCustomerPassword(params: {
 
     const { userId, newPassword } = validation.data
 
+    const target = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true },
+    })
+    if (!target || target.role !== UserRole.CUSTOMER) {
+      return {
+        success: false,
+        error: '只能修改客户账号的登录密码',
+      }
+    }
+
     // 加密新密码
     const passwordHash = await hashPassword(newPassword)
 
@@ -278,7 +289,7 @@ export async function resetCustomerPassword(params: {
 
     return {
       success: true,
-      message: '密码重置成功',
+      message: '密码已更新',
     }
   } catch (error) {
     console.error('重置密码失败:', error)

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -41,6 +41,7 @@ interface RegisterResponse {
 
 export default function RegisterPage() {
   const params = useParams();
+  const router = useRouter();
   const locale = (params.locale as string) || "en";
   const t = useTranslations("auth");
     const tCommon = useTranslations("common");
@@ -68,6 +69,7 @@ export default function RegisterPage() {
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -78,16 +80,20 @@ export default function RegisterPage() {
           company: data.company,
         }),
       });
-      
-      const result: RegisterResponse = await response.json();
-      
-      if (!result.success) {
+
+      const result: RegisterResponse = await response.json().catch(() => ({
+        success: false as const,
+      }));
+
+      if (!response.ok || !result.success) {
         setApiError(result.error || t("registrationFailed"));
         return;
       }
-      
-      // 注册成功后跳转到待审核页面
-      window.location.href = `/${locale}/storefront/pending`;
+
+      await router.refresh();
+      requestAnimationFrame(() => {
+        window.location.replace(`/${locale}/storefront/pending`);
+      });
     } catch {
       setApiError(tCommon("networkError"));
     }

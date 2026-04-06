@@ -63,7 +63,7 @@ export function ResetPasswordDialog({
       })
 
       if (result.success) {
-        toast.success(result.message || '密码重置成功')
+        toast.success(result.message || '密码已更新')
         onOpenChange(false)
         onSuccess()
       } else {
@@ -82,9 +82,9 @@ export function ResetPasswordDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-border text-foreground">
         <DialogHeader>
-          <DialogTitle className="text-foreground">重置客户密码</DialogTitle>
+          <DialogTitle className="text-foreground">修改客户登录密码</DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            为该客户设置新密码，新密码将立即生效。
+            设置用于客户端登录的新密码，保存后立即生效。
           </DialogDescription>
         </DialogHeader>
 
@@ -146,7 +146,7 @@ export function ResetPasswordDialog({
             disabled={isLoading}
             className="bg-primary text-primary-foreground hover:bg-accent"
           >
-            {isLoading ? '处理中...' : '确认重置'}
+            {isLoading ? '处理中...' : '确认修改'}
           </Button>
         </DialogFooter>
       </DialogContent>

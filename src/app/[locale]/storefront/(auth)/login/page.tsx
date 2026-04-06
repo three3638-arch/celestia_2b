@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -34,8 +34,21 @@ interface LoginResponse {
   message?: string;
 }
 
+function navigateAfterLogin(locale: string, role: string, status: "ACTIVE" | "PENDING") {
+  if (role === "ADMIN") {
+    window.location.replace("/admin");
+    return;
+  }
+  if (status === "ACTIVE") {
+    window.location.replace(`/${locale}/storefront`);
+    return;
+  }
+  window.location.replace(`/${locale}/storefront/pending`);
+}
+
 export default function LoginPage() {
   const params = useParams();
+  const router = useRouter();
   const locale = (params.locale as string) || "en";
   const t = useTranslations("auth");
     const tCommon = useTranslations("common");
@@ -60,24 +73,33 @@ export default function LoginPage() {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
       });
-      
-      const result: LoginResponse = await response.json();
-      
-      if (!result.success) {
+
+      const result: LoginResponse = await response.json().catch(() => ({
+        success: false as const,
+      }));
+
+      if (!response.ok || !result.success) {
         setApiError(result.error || t("loginFailed"));
         return;
       }
-      
-      if (result.data?.status === "ACTIVE") {
-        window.location.href = `/${locale}/storefront`;
-      } else if (result.data?.status === "PENDING") {
-        window.location.href = `/${locale}/storefront/pending`;
+
+      const payload = result.data;
+      if (!payload?.status || !payload.role) {
+        setApiError(t("loginFailed"));
+        return;
       }
+
+      // 让服务端下发的 Set-Cookie 进入浏览器后再整页跳转，避免仍停留在登录页
+      await router.refresh();
+      requestAnimationFrame(() => {
+        navigateAfterLogin(locale, payload.role, payload.status);
+      });
     } catch {
       setApiError(tCommon("networkError"));
     }
