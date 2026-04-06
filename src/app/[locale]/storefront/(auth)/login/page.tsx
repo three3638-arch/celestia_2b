@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -35,7 +35,6 @@ interface LoginResponse {
 }
 
 export default function LoginPage() {
-  const router = useRouter();
   const params = useParams();
   const locale = (params.locale as string) || "en";
   const t = useTranslations("auth");
@@ -75,9 +74,9 @@ export default function LoginPage() {
       }
       
       if (result.data?.status === "ACTIVE") {
-        router.push(`/${locale}/storefront`);
+        window.location.href = `/${locale}/storefront`;
       } else if (result.data?.status === "PENDING") {
-        router.push(`/${locale}/storefront/pending`);
+        window.location.href = `/${locale}/storefront/pending`;
       }
     } catch {
       setApiError(tCommon("networkError"));

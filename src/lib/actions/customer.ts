@@ -3,17 +3,20 @@
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { DEFAULT_MARKUP_RATIO } from '@/lib/constants'
-import { approveCustomerSchema, updateMarkupRatioSchema } from '@/lib/validations/customer'
+import { approveCustomerSchema, updateMarkupRatioSchema, resetPasswordSchema } from '@/lib/validations/customer'
 import { formatZodErrors } from '@/lib/validations/error-formatter'
 import type { ApiResponse, PaginatedResponse } from '@/types'
 import { UserRole, UserStatus } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import type { z } from 'zod'
 
+import { hashPassword } from '@/lib/password'
+
 // 字段名映射
 const customerFieldNameMap: Record<string, string> = {
   userId: '用户ID',
   markupRatio: '加价比例',
+  newPassword: '新密码',
 }
 
 // 客户列表项类型
@@ -231,6 +234,57 @@ export async function updateMarkupRatio(params: {
     return {
       success: false,
       error: '更新加价比例失败，请稍后重试',
+    }
+  }
+}
+
+// 重置客户密码
+export async function resetCustomerPassword(params: {
+  userId: string
+  newPassword: string
+}): Promise<ApiResponse> {
+  try {
+    // 验证当前用户身份
+    const currentUser = await getCurrentUser()
+    if (!currentUser || currentUser.role !== 'ADMIN') {
+      return {
+        success: false,
+        error: '无权限执行此操作',
+      }
+    }
+
+    // 使用 Zod 验证参数，返回具体字段错误
+    const validation = resetPasswordSchema.safeParse(params)
+    if (!validation.success) {
+      return {
+        success: false,
+        error: formatZodErrors(validation.error.issues, customerFieldNameMap),
+      }
+    }
+
+    const { userId, newPassword } = validation.data
+
+    // 加密新密码
+    const passwordHash = await hashPassword(newPassword)
+
+    // 更新密码
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    })
+
+    // 刷新缓存
+    revalidatePath('/admin/customers')
+
+    return {
+      success: true,
+      message: '密码重置成功',
+    }
+  } catch (error) {
+    console.error('重置密码失败:', error)
+    return {
+      success: false,
+      error: '重置密码失败，请稍后重试',
     }
   }
 }

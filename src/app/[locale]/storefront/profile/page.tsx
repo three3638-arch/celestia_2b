@@ -41,7 +41,7 @@ export default function ProfilePage() {
         const response = await fetch("/api/auth/me");
         if (response.ok) {
           const data = await response.json();
-          setUserInfo(data.user);
+          setUserInfo(data.data?.user);
         }
       } catch {
         // 静默处理错误

@@ -16,7 +16,8 @@ import {
 import { getCustomers, type CustomerListItem } from '@/lib/actions/customer'
 import { ApproveCustomerDialog } from '@/components/admin/approve-customer-dialog'
 import { UpdateMarkupDialog } from '@/components/admin/update-markup-dialog'
-import { Search, ChevronLeft, ChevronRight, UserCheck, Edit3 } from 'lucide-react'
+import { ResetPasswordDialog } from '@/components/admin/reset-password-dialog'
+import { Search, ChevronLeft, ChevronRight, UserCheck, Edit3, Key } from 'lucide-react'
 import { toast } from 'sonner'
 
 // 状态筛选类型
@@ -41,7 +42,9 @@ export default function CustomersPage() {
   // 对话框状态
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [updateMarkupDialogOpen, setUpdateMarkupDialogOpen] = useState(false)
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(null)
+  const [resetPasswordCustomer, setResetPasswordCustomer] = useState<CustomerListItem | null>(null)
 
   // 加载客户列表
   const loadCustomers = useCallback(async () => {
@@ -97,6 +100,12 @@ export default function CustomersPage() {
   const handleUpdateMarkup = (customer: CustomerListItem) => {
     setSelectedCustomer(customer)
     setUpdateMarkupDialogOpen(true)
+  }
+
+  // 打开重置密码对话框
+  const handleResetPassword = (customer: CustomerListItem) => {
+    setResetPasswordCustomer(customer)
+    setResetPasswordDialogOpen(true)
   }
 
   // 操作成功后刷新列表
@@ -224,15 +233,26 @@ export default function CustomersPage() {
                           审核
                         </Button>
                       ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleUpdateMarkup(customer)}
-                          className="border-border bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
-                        >
-                          <Edit3 className="h-4 w-4 mr-1" />
-                          修改加价
-                        </Button>
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleUpdateMarkup(customer)}
+                            className="border-border bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            <Edit3 className="h-4 w-4 mr-1" />
+                            修改加价
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResetPassword(customer)}
+                            className="border-border bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            <Key className="h-4 w-4 mr-1" />
+                            重置密码
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
@@ -316,6 +336,14 @@ export default function CustomersPage() {
         customer={selectedCustomer}
         open={updateMarkupDialogOpen}
         onOpenChange={setUpdateMarkupDialogOpen}
+        onSuccess={handleSuccess}
+      />
+
+      {/* 重置密码对话框 */}
+      <ResetPasswordDialog
+        customer={resetPasswordCustomer}
+        open={resetPasswordDialogOpen}
+        onOpenChange={setResetPasswordDialogOpen}
         onSuccess={handleSuccess}
       />
     </>

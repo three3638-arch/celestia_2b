@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -40,7 +40,6 @@ interface RegisterResponse {
 }
 
 export default function RegisterPage() {
-  const router = useRouter();
   const params = useParams();
   const locale = (params.locale as string) || "en";
   const t = useTranslations("auth");
@@ -88,7 +87,7 @@ export default function RegisterPage() {
       }
       
       // 注册成功后跳转到待审核页面
-      router.push(`/${locale}/storefront/pending`);
+      window.location.href = `/${locale}/storefront/pending`;
     } catch {
       setApiError(tCommon("networkError"));
     }
