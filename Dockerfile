@@ -1,3 +1,6 @@
+# syntax=docker/dockerfile:1
+# 需 Docker BuildKit（docker compose build 默认已开启），用于下一阶段的缓存挂载加速重复构建
+
 # 阶段1: 安装依赖
 FROM node:22-alpine AS deps
 WORKDIR /app
@@ -46,8 +49,9 @@ ENV NODE_ENV=production
 # 重新生成 Prisma Client（确保与构建环境兼容）
 RUN npx prisma generate
 
-# 构建应用
-RUN npm run build
+# 构建应用（挂载 .next/cache：代码小改时重建会快很多；首次构建仍取决于 CPU）
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
 # 阶段3: 运行
 FROM node:22-alpine AS runner

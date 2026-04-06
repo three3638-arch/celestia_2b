@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { createCategorySchema } from '@/lib/validations/category'
 import { formatZodErrors } from '@/lib/validations/error-formatter'
 import { batchTranslate } from '@/lib/excel/translator'
+import { getCanonicalCategoryI18n } from '@/lib/constants/category-i18n'
 import type { ApiResponse } from '@/types'
 import type { Category } from '@prisma/client'
 import type { z } from 'zod'
@@ -66,15 +67,23 @@ export async function createCategory(data: {
     let finalNameAr = validatedData.nameAr ?? ''
 
     if (!finalNameEn || !finalNameAr) {
+      const canonical = getCanonicalCategoryI18n(validatedData.nameZh)
       try {
         const translations = await batchTranslate([validatedData.nameZh])
-        finalNameEn = finalNameEn || translations[0]?.en || `[EN] ${validatedData.nameZh}`
-        finalNameAr = finalNameAr || translations[0]?.ar || `[AR] ${validatedData.nameZh}`
+        finalNameEn =
+          finalNameEn ||
+          translations[0]?.en ||
+          canonical?.nameEn ||
+          `[EN] ${validatedData.nameZh}`
+        finalNameAr =
+          finalNameAr ||
+          translations[0]?.ar ||
+          canonical?.nameAr ||
+          `[AR] ${validatedData.nameZh}`
       } catch (error) {
         console.error('[createCategory] Translation failed:', error)
-        // 翻译失败使用 fallback
-        finalNameEn = finalNameEn || `[EN] ${validatedData.nameZh}`
-        finalNameAr = finalNameAr || `[AR] ${validatedData.nameZh}`
+        finalNameEn = finalNameEn || canonical?.nameEn || `[EN] ${validatedData.nameZh}`
+        finalNameAr = finalNameAr || canonical?.nameAr || `[AR] ${validatedData.nameZh}`
       }
     }
 
