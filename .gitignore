@@ -54,3 +54,6 @@ public/uploads/
 
 # products folder
 products/
+
+# 生产部署脚本：本地保留，暂不纳入版本库，避免误改影响线上
+scripts/deploy.sh
