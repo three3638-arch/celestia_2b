@@ -245,8 +245,15 @@ export async function getProducts(
 ): Promise<PaginatedResponse<ProductListItem>> {
   const { categoryId, gemType, metalColor, keyword, sortBy, cursor, pageSize = 20 } = params
 
-  // 获取当前用户（用于过滤隐藏商品）
+  // 获取当前用户（用于过滤隐藏商品和计算加价比例）
   const user = await getCurrentUser()
+
+  // 计算加价比例：ADMIN 看原始价格，CUSTOMER 用其 markupRatio，未登录用户默认 1.15
+  const markupRatio = user?.role === 'ADMIN'
+    ? 1
+    : user?.role === 'CUSTOMER' && user.markupRatio
+      ? parseFloat(user.markupRatio)
+      : 1.15
 
   // 获取用户隐藏的商品ID列表
   let hiddenProductIds: string[] = []
@@ -353,15 +360,19 @@ export async function getProducts(
   const items = hasMore ? products.slice(0, pageSize) : products
   const nextCursor = hasMore ? items[items.length - 1]?.id : undefined
 
-  // 格式化返回数据
+  // 格式化返回数据（应用加价比例）
   const formattedItems: ProductListItem[] = items.map(product => ({
     id: product.id,
     spuCode: product.spuCode,
     nameZh: product.nameZh,
     nameEn: product.nameEn,
     nameAr: product.nameAr,
-    minPriceSar: product.minPriceSar?.toString() ?? null,
-    maxPriceSar: product.maxPriceSar?.toString() ?? null,
+    minPriceSar: product.minPriceSar
+      ? (Math.ceil(parseFloat(product.minPriceSar.toString()) * markupRatio * 10) / 10).toString()
+      : null,
+    maxPriceSar: product.maxPriceSar
+      ? (Math.ceil(parseFloat(product.maxPriceSar.toString()) * markupRatio * 10) / 10).toString()
+      : null,
     primaryImageUrl: product.images[0]?.url ?? null,
     primaryImageThumbnailUrl: product.images[0]?.thumbnailUrl ?? null,
     gemTypes: [...product.gemTypes].sort((a, b) => {
@@ -383,10 +394,18 @@ export async function getProducts(
  * 获取商品详情
  * - 包含完整信息：商品基础 + 所有 SKU + 所有图片 + 品类信息
  * - 自动过滤 INACTIVE（除非是 ADMIN 查看）
+ * - 根据用户加价比例动态计算价格
  */
 export async function getProductDetail(productId: string): Promise<ProductDetail | null> {
   const user = await getCurrentUser()
   const isAdmin = user?.role === 'ADMIN'
+
+  // 计算加价比例：ADMIN 看原始价格，CUSTOMER 用其 markupRatio，未登录用户默认 1.15
+  const markupRatio = user?.role === 'ADMIN'
+    ? 1
+    : user?.role === 'CUSTOMER' && user.markupRatio
+      ? parseFloat(user.markupRatio)
+      : 1.15
 
   const product = await prisma.product.findFirst({
     where: {
@@ -432,8 +451,12 @@ export async function getProductDetail(productId: string): Promise<ProductDetail
     }),
     metalColors: product.metalColors,
     status: product.status,
-    minPriceSar: product.minPriceSar?.toString() ?? null,
-    maxPriceSar: product.maxPriceSar?.toString() ?? null,
+    minPriceSar: product.minPriceSar
+      ? (Math.ceil(parseFloat(product.minPriceSar.toString()) * markupRatio * 10) / 10).toString()
+      : null,
+    maxPriceSar: product.maxPriceSar
+      ? (Math.ceil(parseFloat(product.maxPriceSar.toString()) * markupRatio * 10) / 10).toString()
+      : null,
     category: product.category,
     skus: product.skus.map(sku => ({
       id: sku.id,
@@ -444,7 +467,9 @@ export async function getProductDetail(productId: string): Promise<ProductDetail
       size: sku.size,
       chainLength: sku.chainLength,
       stockStatus: sku.stockStatus,
-      referencePriceSar: sku.referencePriceSar?.toString() ?? null,
+      referencePriceSar: sku.referencePriceSar
+        ? (Math.ceil(parseFloat(sku.referencePriceSar.toString()) * markupRatio * 10) / 10).toString()
+        : null,
     })),
     images: product.images.map(image => ({
       id: image.id,

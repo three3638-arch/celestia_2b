@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Clock, CheckCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -15,7 +15,6 @@ interface LogoutResponse {
 }
 
 export default function PendingPage() {
-  const router = useRouter();
   const params = useParams();
   const locale = (params.locale as string) || "en";
   const t = useTranslations("pending");
@@ -37,11 +36,11 @@ export default function PendingPage() {
       const result: LogoutResponse = await response.json();
       
       if (result.success) {
-        router.push(`/${locale}/storefront/login`);
+        window.location.href = `/${locale}/storefront/login`;
       }
     } catch {
       // 即使失败也跳转
-      router.push(`/${locale}/storefront/login`);
+      window.location.href = `/${locale}/storefront/login`;
     } finally {
       setIsSigningOut(false);
     }

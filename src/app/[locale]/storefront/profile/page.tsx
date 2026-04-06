@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { User, Phone, Building2, LogOut, Check, Globe, EyeOff } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -24,7 +24,6 @@ const languages = [
 ] as const;
 
 export default function ProfilePage() {
-  const router = useRouter();
   const pathname = usePathname();
   const locale = useLocale();
   const t = useTranslations("profile");
@@ -72,7 +71,7 @@ export default function ProfilePage() {
       });
       
       if (response.ok) {
-        router.push(`/${locale}/storefront/login`);
+        window.location.href = `/${locale}/storefront/login`;
       }
     } catch {
       // 静默处理错误
