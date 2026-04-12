@@ -68,6 +68,7 @@ export default function QuotePage({ params }: QuotePageProps) {
       spuCode: string | null;
       unitPriceCny: string | null;
       unitPriceSar: string | null;
+      suggestedCostCny: string | null;
     }>;
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -128,10 +129,12 @@ export default function QuotePage({ params }: QuotePageProps) {
           customSarPrice: string | null;
         }> = {};
         items.forEach((item) => {
+          // 优先级 1：本条 order_item 已有 unit_price_cny；否则用服务端建议（历史报价 / SKU 参考价）
+          // 客户单价 SAR：仅按当前页汇率×加价自动计算（customSarPrice 置空）
           initialPrices[item.id] = {
-            price: item.unitPriceCny || "",
+            price: item.unitPriceCny || item.suggestedCostCny || "",
             outOfStock: false,
-            customSarPrice: item.unitPriceSar || null,
+            customSarPrice: null,
           };
         });
         setItemPrices(initialPrices);
@@ -186,6 +189,17 @@ export default function QuotePage({ params }: QuotePageProps) {
       [itemId]: { ...prev[itemId], customSarPrice: null },
     }));
   };
+
+  /** 汇率或加价比例变更时：清空各行的「自定义客户单价」，使客户单价(SAR)全部按当前公式批量重算 */
+  const clearAllCustomSarPrices = useCallback(() => {
+    setItemPrices((prev) => {
+      const next = { ...prev };
+      for (const k of Object.keys(next)) {
+        next[k] = { ...next[k], customSarPrice: null };
+      }
+      return next;
+    });
+  }, []);
 
   // 计算自动客户单价
   const calculateAutoSarPrice = (costCny: string): number => {
@@ -352,9 +366,9 @@ export default function QuotePage({ params }: QuotePageProps) {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)]">
+    <div className="flex min-h-0 flex-col gap-4 h-[calc(100dvh-7rem)] max-h-[calc(100dvh-7rem)]">
       {/* 顶部固定：页面标题 */}
-      <div className="shrink-0 mb-4">
+      <div className="shrink-0">
         <div className="flex items-center gap-4 mb-4">
           <Button
             variant="outline"
@@ -378,7 +392,7 @@ export default function QuotePage({ params }: QuotePageProps) {
       </div>
 
       {/* 顶部固定：汇率与加价设置 */}
-      <div className="shrink-0 mb-4">
+      <div className="shrink-0">
         <Card className="bg-card border-border">
           <CardHeader className="pb-3">
             <CardTitle className="text-foreground flex items-center gap-2 text-base">
@@ -403,7 +417,10 @@ export default function QuotePage({ params }: QuotePageProps) {
                     step="0.001"
                     placeholder="0.520"
                     value={exchangeRate}
-                    onChange={(e) => setExchangeRate(e.target.value)}
+                    onChange={(e) => {
+                      setExchangeRate(e.target.value);
+                      clearAllCustomSarPrices();
+                    }}
                     className="bg-background border-border pr-16"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
@@ -424,7 +441,10 @@ export default function QuotePage({ params }: QuotePageProps) {
                     step="0.01"
                     placeholder="1.15"
                     value={markupRatio}
-                    onChange={(e) => setMarkupRatio(e.target.value)}
+                    onChange={(e) => {
+                      setMarkupRatio(e.target.value);
+                      clearAllCustomSarPrices();
+                    }}
                     className="bg-background border-border pr-10"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
@@ -463,27 +483,26 @@ export default function QuotePage({ params }: QuotePageProps) {
 
       {/* 错误提示 */}
       {error && (
-        <div className="shrink-0 mb-4">
+        <div className="shrink-0">
           <ErrorAlert message={error} />
         </div>
       )}
 
-      {/* 中间滚动：商品表格 */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <Card className="bg-card border-border h-full">
-          <CardHeader className="pb-3 sticky top-0 bg-card z-10 border-b border-border">
-            <CardTitle className="text-foreground flex items-center gap-2 text-base">
-              <Package className="h-4 w-4 text-primary" />
-              商品报价明细
-            </CardTitle>
-            <CardDescription className="text-muted-foreground text-sm">
-              填写成本单价，客户单价自动计算（可手动修改覆盖）
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
+      {/* 中间区域：SKU 表格独立竖向滚动（flex 子项须 min-h-0 才能收缩出滚动条） */}
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card border-border">
+        <CardHeader className="shrink-0 border-b border-border pb-3">
+          <CardTitle className="text-foreground flex items-center gap-2 text-base">
+            <Package className="h-4 w-4 text-primary" />
+            商品报价明细
+          </CardTitle>
+          <CardDescription className="text-muted-foreground text-sm">
+            填写成本单价，客户单价自动计算（可手动修改覆盖）
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="min-h-0 flex-1 overflow-y-auto overflow-x-auto p-0">
+          <div className="min-w-[900px]">
+            <Table>
+                <TableHeader className="sticky top-0 z-10 border-b border-border bg-card">
                   <TableRow className="border-border hover:bg-transparent">
                     <TableHead className="text-muted-foreground whitespace-nowrap">商品</TableHead>
                     <TableHead className="text-muted-foreground whitespace-nowrap">SKU描述</TableHead>
@@ -649,13 +668,12 @@ export default function QuotePage({ params }: QuotePageProps) {
                   })}
                 </TableBody>
               </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 底部固定：合计+毛利+提交按钮 */}
-      <div className="shrink-0 mt-4">
+      <div className="shrink-0">
         <Card className="bg-card border-border">
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row md:items-end gap-4 md:gap-6">

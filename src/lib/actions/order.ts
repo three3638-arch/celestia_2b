@@ -6,11 +6,11 @@ import { generateOrderNo } from '@/lib/utils'
 import { calculateCustomerPrice, decimalAdd, decimalMul } from '@/lib/decimal'
 import { createOrderSchema, customerUpdateOrderSchema, submitQuoteSchema, adjustOrderSchema, updateOrderStatusSchema } from '@/lib/validations/order'
 import { formatZodErrors } from '@/lib/validations/error-formatter'
-import { ORDER_STATUS_CONFIG } from '@/lib/constants'
+import { DEFAULT_EXCHANGE_RATE, ORDER_STATUS_CONFIG } from '@/lib/constants'
 import type { ApiResponse, PaginatedResponse, OrderFilterParams } from '@/types'
 import { revalidatePath } from 'next/cache'
 import Decimal from 'decimal.js'
-
+import { Prisma } from '@prisma/client'
 // ============================================================
 // 字段名映射
 // ============================================================
@@ -84,6 +84,90 @@ async function requireAdmin() {
     throw new Error('Admin access required')
   }
   return user
+}
+
+/**
+ * SKU 参考价（SAR，无加价）→ 成本单价 CNY：除以汇率后，小数点后 1 位向上取整（与报价页约定一致）
+ */
+function referenceSarToCostCnyCeil1(refSar: Decimal, exchangeRate: number): string | null {
+  if (exchangeRate <= 0 || refSar.lte(0)) return null
+  const raw = refSar.div(exchangeRate)
+  const out = raw.mul(10).ceil().div(10)
+  return out.toDecimalPlaces(1).toString()
+}
+
+/**
+ * 报价页：对 unit_price_cny 为空的行生成建议成本 CNY
+ * - 优先级 2：其他订单中该 SKU 最近一次保存的报价 CNY（按 orders.updated_at 最新）
+ * - 优先级 3：SKU.reference_price_sar 按汇率换算为 CNY
+ */
+async function getSuggestedCostCnyByOrderItemId(params: {
+  orderId: string
+  rateForReference: number
+  lineItems: Array<{ id: string; skuId: string; unitPriceCny: Decimal | null }>
+}): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  const needs = params.lineItems.filter((i) => i.unitPriceCny == null)
+  if (needs.length === 0) return out
+
+  const skuIds = [...new Set(needs.map((i) => i.skuId))]
+  if (skuIds.length === 0) return out
+
+  const p2Rows = await prisma.$queryRaw<Array<{ sku_id: string; unit_price_cny: unknown }>>`
+    WITH ranked AS (
+      SELECT
+        oi.sku_id AS sku_id,
+        oi.unit_price_cny AS unit_price_cny,
+        ROW_NUMBER() OVER (
+          PARTITION BY oi.sku_id
+          ORDER BY o.updated_at DESC
+        ) AS rn
+      FROM order_items oi
+      INNER JOIN orders o ON o.id = oi.order_id
+      WHERE oi.order_id <> ${params.orderId}
+        AND oi.unit_price_cny IS NOT NULL
+        AND oi.sku_id IN (${Prisma.join(skuIds)})
+    )
+    SELECT sku_id, unit_price_cny FROM ranked WHERE rn = 1
+  `
+
+  const p2BySku = new Map<string, string>()
+  for (const row of p2Rows) {
+    if (row.unit_price_cny == null) continue
+    p2BySku.set(
+      row.sku_id,
+      new Decimal(String(row.unit_price_cny)).toDecimalPlaces(2).toString()
+    )
+  }
+
+  const needP3 = skuIds.filter((id) => !p2BySku.has(id))
+  const p3BySku = new Map<string, string>()
+  if (needP3.length > 0) {
+    const skus = await prisma.productSku.findMany({
+      where: { id: { in: needP3 } },
+      select: { id: true, referencePriceSar: true },
+    })
+    for (const sku of skus) {
+      if (!sku.referencePriceSar) continue
+      const cny = referenceSarToCostCnyCeil1(
+        new Decimal(sku.referencePriceSar.toString()),
+        params.rateForReference
+      )
+      if (cny) p3BySku.set(sku.id, cny)
+    }
+  }
+
+  for (const line of needs) {
+    const fromP2 = p2BySku.get(line.skuId)
+    if (fromP2) {
+      out.set(line.id, fromP2)
+      continue
+    }
+    const fromP3 = p3BySku.get(line.skuId)
+    if (fromP3) out.set(line.id, fromP3)
+  }
+
+  return out
 }
 
 /**
@@ -812,6 +896,8 @@ export async function getAdminOrderDetail(
     quantity: number
     unitPriceCny: string | null
     unitPriceSar: string | null
+    /** 仅当 unitPriceCny 为空时：报价页建议成本（历史报价或 SKU 参考价换算） */
+    suggestedCostCny: string | null
     itemStatus: string
     productImage: string | null
     supplier: string | null
@@ -909,6 +995,30 @@ export async function getAdminOrderDetail(
     }
     
     const statusKey = order.status as keyof typeof ORDER_STATUS_CONFIG
+
+    let rateForReference = DEFAULT_EXCHANGE_RATE
+    if (order.exchangeRate) {
+      rateForReference = new Decimal(order.exchangeRate.toString()).toNumber()
+    } else {
+      const latestRateOrder = await prisma.order.findFirst({
+        where: { exchangeRate: { not: null } },
+        orderBy: { createdAt: 'desc' },
+        select: { exchangeRate: true },
+      })
+      if (latestRateOrder?.exchangeRate) {
+        rateForReference = new Decimal(latestRateOrder.exchangeRate.toString()).toNumber()
+      }
+    }
+
+    const suggestedCostCnyByItemId = await getSuggestedCostCnyByOrderItemId({
+      orderId: order.id,
+      rateForReference,
+      lineItems: order.items.map((i) => ({
+        id: i.id,
+        skuId: i.skuId,
+        unitPriceCny: i.unitPriceCny,
+      })),
+    })
     
     return {
       success: true,
@@ -946,6 +1056,10 @@ export async function getAdminOrderDetail(
               .toDecimalPlaces(2)
               .toString()
           }
+
+          const suggestedCostCny = item.unitPriceCny
+            ? null
+            : (suggestedCostCnyByItemId.get(item.id) ?? null)
           
           return {
             id: item.id,
@@ -955,6 +1069,7 @@ export async function getAdminOrderDetail(
             quantity: item.quantity,
             unitPriceCny: item.unitPriceCny?.toString() || null,
             unitPriceSar: item.unitPriceSar?.toString() || null,
+            suggestedCostCny,
             itemStatus: item.itemStatus,
             productImage: item.sku.product.images[0]?.url || null,
             supplier: item.sku.product.supplier || null,
