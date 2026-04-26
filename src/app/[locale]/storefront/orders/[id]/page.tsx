@@ -447,6 +447,9 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   }
 
   const currentStatusIndex = getCurrentStatusIndex();
+  const activeItems = order.items.filter(
+    (item) => item.itemStatus !== "CUSTOMER_REMOVED"
+  );
 
   return (
     <div className="min-h-screen pb-8">
@@ -532,7 +535,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
             {t("itemsTitle")}
           </h2>
           <div className="space-y-3">
-            {order.items.map((item) => {
+            {activeItems.map((item) => {
               // 查找对应的结算数据
               const settlementItem = settlement?.items.find(
                 (si) => si.productNameSnapshot === item.productNameSnapshot && 

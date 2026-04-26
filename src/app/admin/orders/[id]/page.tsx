@@ -425,7 +425,11 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {order.items.map((item) => {
+                  {[...order.items].sort((a, b) => {
+                    if (a.itemStatus === 'CUSTOMER_REMOVED' && b.itemStatus !== 'CUSTOMER_REMOVED') return 1;
+                    if (a.itemStatus !== 'CUSTOMER_REMOVED' && b.itemStatus === 'CUSTOMER_REMOVED') return -1;
+                    return 0;
+                  }).map((item) => {
                     // 结算后使用结算数据，否则使用报价数据
                     const displayQty = hasSettlement && item.settlementQty !== null 
                       ? item.settlementQty 
@@ -450,6 +454,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                       : null;
                                       
                     const isOutOfStock = item.itemStatus === "OUT_OF_STOCK";
+                    const isRemoved = item.itemStatus === "CUSTOMER_REMOVED";
                     const isReturned = item.isReturned;
                     const qtyChanged = hasSettlement && item.settlementQty !== null && item.settlementQty !== item.quantity;
                     // 客户单价(SAR)是否有变化
@@ -457,7 +462,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                       parseFloat(item.settlementPriceSar) !== parseFloat(item.unitPriceSar);
                   
                     return (
-                      <TableRow key={item.id} className={`border-border ${isReturned ? "opacity-50" : ""}`}>
+                      <TableRow key={item.id} className={`border-border ${isReturned ? "opacity-50" : ""} ${isRemoved ? "opacity-50 line-through" : ""}`}>
                         <TableCell>
                           <div className="flex items-center gap-3">
                             {item.productImage ? (
@@ -545,6 +550,10 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                           {isReturned ? (
                             <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/30">
                               退货
+                            </Badge>
+                          ) : isRemoved ? (
+                            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border">
+                              已删除
                             </Badge>
                           ) : isOutOfStock ? (
                             <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-500/30">

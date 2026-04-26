@@ -519,10 +519,15 @@ export default function QuotePage({ params }: QuotePageProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {order.items.map((item) => {
+                  {[...order.items].sort((a, b) => {
+                    if (a.itemStatus === 'CUSTOMER_REMOVED' && b.itemStatus !== 'CUSTOMER_REMOVED') return 1;
+                    if (a.itemStatus !== 'CUSTOMER_REMOVED' && b.itemStatus === 'CUSTOMER_REMOVED') return -1;
+                    return 0;
+                  }).map((item) => {
                     const itemData = itemPrices[item.id];
                     const costSubtotal = calculateCostSubtotal(item.id, item.quantity);
                     const isOutOfStock = itemData?.outOfStock;
+                    const isRemoved = item.itemStatus === 'CUSTOMER_REMOVED';
                     const sarUnitPrice = getSarUnitPrice(item.id);
                     const sarSubtotal = calculateSarSubtotal(item.id, item.quantity);
                     const hasCustomPrice = isCustomPrice(item.id);
@@ -531,7 +536,7 @@ export default function QuotePage({ params }: QuotePageProps) {
                     return (
                       <TableRow
                         key={item.id}
-                        className={`border-border ${isOutOfStock ? "opacity-50" : ""} ${hasCustomPrice ? "bg-amber-500/5" : ""}`}
+                        className={`border-border ${isOutOfStock ? "opacity-50" : ""} ${isRemoved ? "opacity-50 line-through" : ""} ${hasCustomPrice && !isRemoved ? "bg-amber-500/5" : ""}`}
                       >
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -547,7 +552,14 @@ export default function QuotePage({ params }: QuotePageProps) {
                               </div>
                             )}
                             <div className="min-w-0">
-                              <span className="text-sm text-foreground block truncate">{item.productNameSnapshot}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm text-foreground block truncate">{item.productNameSnapshot}</span>
+                                {isRemoved && (
+                                  <Badge variant="outline" className="shrink-0 text-[10px] bg-muted/50 text-muted-foreground border-border">
+                                    已删除
+                                  </Badge>
+                                )}
+                              </div>
                               {item.spuCode && (
                                 <span className="text-xs text-muted-foreground block truncate">{item.spuCode}</span>
                               )}
@@ -596,7 +608,7 @@ export default function QuotePage({ params }: QuotePageProps) {
                             placeholder="0.00"
                             value={itemData?.price || ""}
                             onChange={(e) => updateItemPrice(item.id, e.target.value)}
-                            disabled={isOutOfStock}
+                            disabled={isOutOfStock || isRemoved}
                             className="w-24 ml-auto text-right bg-background border-border"
                           />
                         </TableCell>
@@ -611,7 +623,7 @@ export default function QuotePage({ params }: QuotePageProps) {
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
-                            {isOutOfStock ? (
+                            {isOutOfStock || isRemoved ? (
                               <span className="text-muted-foreground">-</span>
                             ) : (
                               <>
@@ -663,6 +675,7 @@ export default function QuotePage({ params }: QuotePageProps) {
                           <Checkbox
                             checked={isOutOfStock}
                             onCheckedChange={(checked) => updateItemOutOfStock(item.id, checked as boolean)}
+                            disabled={isRemoved}
                             className="border-border"
                           />
                         </TableCell>
