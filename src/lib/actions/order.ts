@@ -634,6 +634,32 @@ export async function customerUpdateOrder(
           data: { status: 'NEGOTIATING' },
         })
       }
+
+      // 5. 重新计算订单金额（仅当订单已有报价时才需要）
+      if (order.status === 'QUOTED' || order.status === 'NEGOTIATING') {
+        const updatedItems = await tx.orderItem.findMany({
+          where: { orderId },
+        })
+
+        let newTotalCny = new Decimal(0)
+        let newTotalSar = new Decimal(0)
+
+        for (const item of updatedItems) {
+          if (item.itemStatus === 'CUSTOMER_REMOVED') continue
+          if (item.unitPriceCny && item.unitPriceSar) {
+            newTotalCny = newTotalCny.add(new Decimal(item.unitPriceCny).mul(item.quantity))
+            newTotalSar = newTotalSar.add(new Decimal(item.unitPriceSar).mul(item.quantity))
+          }
+        }
+
+        await tx.order.update({
+          where: { id: orderId },
+          data: {
+            totalCny: newTotalCny.toDecimalPlaces(2),
+            totalSar: newTotalSar.toDecimalPlaces(2),
+          },
+        })
+      }
     })
     
     revalidatePath(`/[locale]/storefront/orders/${orderId}`)
@@ -1155,6 +1181,9 @@ export async function submitQuote(
       
       // 更新每个 item
       for (const orderItem of order.items) {
+        // 跳过已删除商品
+        if (orderItem.itemStatus === 'CUSTOMER_REMOVED') continue
+
         const itemData = itemPriceMap.get(orderItem.id)
         
         if (itemData !== undefined) {

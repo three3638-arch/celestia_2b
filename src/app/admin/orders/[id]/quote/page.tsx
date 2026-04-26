@@ -69,6 +69,7 @@ export default function QuotePage({ params }: QuotePageProps) {
       unitPriceCny: string | null;
       unitPriceSar: string | null;
       suggestedCostCny: string | null;
+      itemStatus: string;
     }>;
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -251,6 +252,7 @@ export default function QuotePage({ params }: QuotePageProps) {
     const rate = parseFloat(exchangeRate || "0");
 
     order?.items.forEach((item) => {
+      if (item.itemStatus === 'CUSTOMER_REMOVED') return
       const itemData = itemPrices[item.id];
       if (itemData && !itemData.outOfStock) {
         const cost = parseFloat(itemData.price || "0");
@@ -293,6 +295,7 @@ export default function QuotePage({ params }: QuotePageProps) {
 
     // 验证
     const items = order?.items
+      .filter((item) => item.itemStatus !== 'CUSTOMER_REMOVED')
       .filter((item) => !itemPrices[item.id]?.outOfStock)
       .map((item) => ({
         orderItemId: item.id,

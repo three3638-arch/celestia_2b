@@ -218,6 +218,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   // 计算实际成本合计：Σ(unitPriceCny × displayQty)
   // 成本单价永远是 unitPriceCny，不能用 settlementTotalCny（它可能是用 settlementPriceCny 计算的）
   const calculatedTotalCostCny = order?.items.reduce((sum, item) => {
+    if (item.itemStatus === 'CUSTOMER_REMOVED') return sum
     const displayQty = hasSettlement && item.settlementQty !== null
       ? item.settlementQty
       : item.quantity;
@@ -227,6 +228,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
   // 结算后SAR合计（从各行小计求和）
   const calculatedTotalSar = order?.items.reduce((sum, item) => {
+    if (item.itemStatus === 'CUSTOMER_REMOVED') return sum
     const displayQty = hasSettlement && item.settlementQty !== null
       ? item.settlementQty
       : item.quantity;
