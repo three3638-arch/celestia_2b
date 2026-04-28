@@ -780,10 +780,33 @@ export async function updateProduct(
 
         // 4. 新增 SKU
         if (skusToCreate.length > 0) {
+          // 获取该商品所有已存在的 sku_code（包括被订单引用保留的）
+          const allExistingSkuCodes = await tx.productSku.findMany({
+            where: { productId },
+            select: { skuCode: true },
+          })
+          const usedCodes = new Set(allExistingSkuCodes.map(s => s.skuCode))
+
+          // 生成唯一 sku_code：如果冲突则追加序号
+          const generateUniqueSkuCode = (
+            spuCode: string,
+            sku: { gemType: string; metalColor: string; mainStoneSize?: string | null; size?: string | null; chainLength?: string | null }
+          ): string => {
+            let baseCode = generateSkuCode(spuCode, sku)
+            let code = baseCode
+            let suffix = 1
+            while (usedCodes.has(code)) {
+              code = `${baseCode}-${suffix}`
+              suffix++
+            }
+            usedCodes.add(code)
+            return code
+          }
+
           await tx.productSku.createMany({
             data: skusToCreate.map((sku) => ({
               productId,
-              skuCode: generateSkuCode(existingProduct.spuCode, sku),
+              skuCode: generateUniqueSkuCode(existingProduct.spuCode, sku),
               gemType: sku.gemType,
               metalColor: sku.metalColor,
               mainStoneSize: sku.mainStoneSize,
