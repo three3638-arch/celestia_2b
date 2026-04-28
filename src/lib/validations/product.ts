@@ -23,6 +23,11 @@ export const createSkuSchema = z.object({
   referencePriceSar: z.string().optional(), // Decimal as string
 })
 
+// 更新 SKU schema（包含 id 字段用于增量更新）
+export const updateSkuSchema = createSkuSchema.extend({
+  id: z.string().optional(), // 已有 SKU 的 id，用于区分更新/新增
+})
+
 // 创建商品 schema
 export const createProductSchema = z.object({
   spuCode: z.string().min(1).max(50),
@@ -46,8 +51,27 @@ export const createProductSchema = z.object({
   })).optional(),
 })
 
-// 更新商品 schema（大部分字段可选）
-export const updateProductSchema = createProductSchema.partial().omit({ spuCode: true })
+// 更新商品 schema（大部分字段可选，SKU 使用 updateSkuSchema 包含 id）
+export const updateProductSchema = z.object({
+  nameZh: z.string().max(200).optional(),
+  nameEn: z.string().max(200).optional(),
+  nameAr: z.string().max(200).optional(),
+  descriptionZh: z.string().max(2000).optional(),
+  descriptionEn: z.string().max(2000).optional(),
+  descriptionAr: z.string().max(2000).optional(),
+  supplier: z.string().max(100).optional(),
+  supplierLink: z.string().max(500).optional(),
+  categoryId: z.string().optional(),
+  gemTypes: z.array(z.enum(['MOISSANITE', 'ZIRCON'])).optional(),
+  metalColors: z.array(z.enum(['SILVER', 'GOLD', 'ROSE_GOLD', 'OTHER'])).optional(),
+  skus: z.array(updateSkuSchema).min(1).optional(),
+  images: z.array(z.object({
+    url: z.string().url(),
+    thumbnailUrl: z.string().url(),
+    isPrimary: z.boolean().default(false),
+    sortOrder: z.number().int().default(0),
+  })).optional(),
+})
 
 // 更新 SKU 库存状态
 export const updateSkuStockSchema = z.object({

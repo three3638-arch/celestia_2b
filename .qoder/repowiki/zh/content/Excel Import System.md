@@ -19,16 +19,18 @@
 - [docker-compose.prod.yml](file://docker-compose.prod.yml)
 - [Dockerfile](file://Dockerfile)
 - [next.config.ts](file://next.config.ts)
+- [order.ts](file://src/lib/actions/order.ts)
+- [export-route.ts](file://src/app/api/admin/orders/[id]/export/route.ts)
+- [admin-orders-page.tsx](file://src/app/admin/orders/[id]/page.tsx)
 </cite>
 
 ## 更新摘要
 **变更内容**
-- 新增了全面的调试诊断日志系统，增强Excel解析器和图像提取过程的可观测性
-- 新增供应商数据转换脚本convert-xindeyi-excel.ts，专门处理新德艺供应商Excel转换
-- scripts/analyze-excel.ts从xlsx迁移到ExcelJS，提升解析兼容性
-- 更新了Docker部署配置，优化生产环境的稳定性和性能
-- 改进了Next.js依赖配置，支持原生模块的生产环境部署
-- 增强了错误处理和故障排除能力
+- 新增了管理员订单Excel导出功能，包括API端点实现、Excel工作簿生成、数据过滤机制、货币格式化等功能
+- 在前端订单详情页面集成了Excel导出下载按钮
+- 更新了ExcelJS库的使用，支持更丰富的Excel格式化功能
+- 增强了订单数据的安全控制和权限验证机制
+- 完善了错误处理和响应机制
 
 ## 目录
 1. [项目概述](#项目概述)
@@ -36,19 +38,22 @@
 3. [核心组件](#核心组件)
 4. [架构概览](#架构概览)
 5. [详细组件分析](#详细组件分析)
-6. [供应商数据转换系统](#供应商数据转换系统)
-7. [调试诊断系统](#调试诊断系统)
-8. [部署配置](#部署配置)
-9. [依赖关系分析](#依赖关系分析)
-10. [性能考虑](#性能考虑)
-11. [故障排除指南](#故障排除指南)
-12. [结论](#结论)
+6. [Excel导出功能](#excel导出功能)
+7. [供应商数据转换系统](#供应商数据转换系统)
+8. [调试诊断系统](#调试诊断系统)
+9. [部署配置](#部署配置)
+10. [依赖关系分析](#依赖关系分析)
+11. [性能考虑](#性能考虑)
+12. [故障排除指南](#故障排除指南)
+13. [结论](#结论)
 
 ## 项目概述
 
 Excel导入系统是一个完整的商品数据批量导入解决方案，专为珠宝电商平台设计。该系统支持从Excel文件中批量导入商品信息，包括商品基本信息、SKU规格、图片资源等，并提供完整的数据验证、AI翻译和数据库持久化功能。
 
-系统采用现代化的技术栈，基于Next.js构建，使用Prisma ORM进行数据库操作，支持多语言国际化和云端存储集成。最新版本增强了调试诊断能力和生产环境稳定性，新增了供应商数据转换功能，支持多种供应商格式的自动转换。
+**新增** 系统现已扩展为包含完整的数据导入和导出功能，支持管理员对订单数据进行Excel格式的导出，便于采购和财务结算。
+
+系统采用现代化的技术栈，基于Next.js构建，使用Prisma ORM进行数据库操作，支持多语言国际化和云端存储集成。最新版本增强了调试诊断能力和生产环境稳定性，新增了供应商数据转换功能，支持多种供应商格式的自动转换，并增加了Excel导出功能以满足业务需求。
 
 ## 系统架构
 
@@ -57,10 +62,13 @@ graph TB
 subgraph "前端层"
 UI[管理界面]
 Upload[Excel上传组件]
+Export[Excel导出组件]
+OrderDetail[订单详情页面]
 end
 subgraph "API层"
 UploadAPI[上传API]
 ImportAPI[导入API]
+ExportAPI[导出API]
 DebugLog[调试日志系统]
 SupplierConverter[供应商转换器]
 end
@@ -69,6 +77,7 @@ Parser[Excel解析器]
 Validator[数据验证器]
 Translator[AI翻译器]
 SKUExpander[SKU展开器]
+OrderExporter[订单导出器]
 DebugParser[诊断解析器]
 SupplierConverterEngine[转换引擎]
 end
@@ -77,6 +86,7 @@ ImageProcessor[图片处理器]
 TaskStore[任务存储]
 DebugImage[图像诊断]
 SupplierDataProcessor[供应商数据处理]
+OrderDataProcessor[订单数据处理]
 end
 subgraph "数据访问层"
 Prisma[Prisma ORM]
@@ -86,9 +96,14 @@ subgraph "存储层"
 R2[Cloudflare R2]
 Temp[临时文件存储]
 SupplierData[供应商数据缓存]
+OrderData[订单数据缓存]
 end
 UI --> Upload
+UI --> Export
+UI --> OrderDetail
 Upload --> UploadAPI
+Export --> ExportAPI
+OrderDetail --> ExportAPI
 UploadAPI --> DebugLog
 UploadAPI --> Parser
 Parser --> DebugParser
@@ -98,6 +113,9 @@ SupplierDataProcessor --> DebugImage
 SupplierDataProcessor --> TaskStore
 TaskStore --> ImportAPI
 ImportAPI --> Prisma
+ExportAPI --> OrderExporter
+OrderExporter --> OrderDataProcessor
+OrderDataProcessor --> Prisma
 Prisma --> Database
 ImageProcessor --> R2
 UploadAPI --> Temp
@@ -109,6 +127,7 @@ SupplierConverter --> SupplierData
 - [import.ts:248-395](file://src/lib/actions/import.ts#L248-L395)
 - [parser.ts:64-112](file://src/lib/excel/parser.ts#L64-L112)
 - [convert-xindeyi-excel.ts:280-478](file://scripts/convert-xindeyi-excel.ts#L280-L478)
+- [export-route.ts:6-146](file://src/app/api/admin/orders/[id]/export/route.ts#L6-L146)
 
 ## 核心组件
 
@@ -139,11 +158,15 @@ SupplierConverter --> SupplierData
 ### 9. 供应商数据转换系统
 **新增**：专门处理不同供应商格式的Excel文件转换，支持新德艺等供应商的报价表转换为系统导入模板。
 
+### 10. Excel导出系统
+**新增**：提供管理员订单Excel导出功能，支持采购清单的生成和下载，包含数据过滤、格式化和安全控制。
+
 **章节来源**
 - [route.ts:18-88](file://src/app/api/upload/excel/route.ts#L18-L88)
 - [parser.ts:48-135](file://src/lib/excel/parser.ts#L48-L135)
 - [import.ts:245-395](file://src/lib/actions/import.ts#L245-L395)
 - [convert-xindeyi-excel.ts:1-561](file://scripts/convert-xindeyi-excel.ts#L1-L561)
+- [export-route.ts:6-146](file://src/app/api/admin/orders/[id]/export/route.ts#L6-L146)
 
 ## 架构概览
 
@@ -155,6 +178,7 @@ participant Client as 客户端
 participant API as API接口
 participant Debug as 调试系统
 participant Parser as 解析器
+participant Exporter as 导出器
 participant SupplierConverter as 供应商转换器
 participant Validator as 验证器
 participant Translator as 翻译器
@@ -170,6 +194,13 @@ Validator->>Translator : 翻译文本内容
 Translator->>DB : 存储商品数据
 DB-->>API : 返回存储结果
 API-->>Client : 返回导入状态
+Client->>API : 导出订单Excel
+API->>Debug : 记录导出日志
+API->>Exporter : 处理订单数据
+Exporter->>DB : 查询订单详情
+DB-->>Exporter : 返回订单数据
+Exporter->>Exporter : 过滤和格式化数据
+Exporter->>Client : 返回Excel文件
 ```
 
 **图表来源**
@@ -177,6 +208,7 @@ API-->>Client : 返回导入状态
 - [import.ts:248-395](file://src/lib/actions/import.ts#L248-L395)
 - [parser.ts:64-112](file://src/lib/excel/parser.ts#L64-L112)
 - [convert-xindeyi-excel.ts:280-478](file://scripts/convert-xindeyi-excel.ts#L280-L478)
+- [export-route.ts:6-146](file://src/app/api/admin/orders/[id]/export/route.ts#L6-L146)
 
 ## 详细组件分析
 
@@ -328,6 +360,38 @@ boolean isPrimary
 int sortOrder
 datetime createdAt
 }
+ORDER {
+string id PK
+string orderNo UK
+string userId FK
+enum status
+decimal totalCny
+decimal totalSar
+decimal exchangeRate
+decimal markupRatio
+datetime createdAt
+datetime updatedAt
+}
+ORDER_ITEM {
+string id PK
+string orderId FK
+string skuId FK
+string productNameSnapshot
+string skuDescSnapshot
+number quantity
+decimal unitPriceCny
+decimal unitPriceSar
+enum itemStatus
+string spuCode
+string supplier
+string supplierLink
+number settlementQty
+decimal settlementPriceCny
+decimal settlementPriceSar
+boolean isReturned
+datetime createdAt
+datetime updatedAt
+}
 CATEGORY {
 string id PK
 string nameZh
@@ -339,6 +403,7 @@ datetime createdAt
 PRODUCT ||--o{ PRODUCT_SKU : contains
 PRODUCT ||--o{ PRODUCT_IMAGE : has
 CATEGORY ||--o{ PRODUCT : contains
+ORDER ||--o{ ORDER_ITEM : contains
 ```
 
 **图表来源**
@@ -347,6 +412,105 @@ CATEGORY ||--o{ PRODUCT : contains
 
 **章节来源**
 - [schema.prisma:120-189](file://prisma/schema.prisma#L120-L189)
+
+## Excel导出功能
+
+**新增** 系统现在包含完整的Excel导出功能，专门为管理员提供订单数据的Excel格式导出：
+
+### 导出API实现
+
+导出API实现了完整的订单数据导出流程：
+
+```mermaid
+flowchart TD
+Start([开始导出]) --> Auth[验证管理员权限]
+Auth --> CheckOrder{检查订单ID}
+CheckOrder --> |无效| ReturnError[返回权限错误]
+CheckOrder --> |有效| GetOrder[获取订单详情]
+GetOrder --> ValidateOrder{验证订单存在}
+ValidateOrder --> |不存在| ReturnNotFound[返回404错误]
+ValidateOrder --> |存在| FilterItems[过滤商品数据]
+FilterItems --> CreateWorkbook[创建Excel工作簿]
+CreateWorkbook --> SetStyles[设置样式和格式]
+SetStyles --> AddData[添加订单数据]
+AddData --> AddTotals[添加总计行]
+AddTotals --> GenerateBuffer[生成Excel缓冲区]
+GenerateBuffer --> ReturnResponse[返回Excel文件]
+ReturnError --> End([结束])
+ReturnNotFound --> End
+GenerateBuffer --> End
+```
+
+**图表来源**
+- [export-route.ts:6-146](file://src/app/api/admin/orders/[id]/export/route.ts#L6-L146)
+
+### 导出功能特性
+
+1. **权限控制**
+   - 仅管理员用户可访问导出功能
+   - 实时权限验证确保数据安全
+
+2. **数据过滤**
+   - 自动过滤已移除的客户商品（CUSTOMER_REMOVED状态）
+   - 仅导出有效的订单商品数据
+
+3. **格式化处理**
+   - 支持人民币格式化（¥#,##0.00）
+   - 居中对齐和表头样式设置
+   - 自动计算数量和金额总计
+
+4. **文件生成**
+   - 使用ExcelJS库生成.xlsx格式文件
+   - 自动设置正确的HTTP响应头
+   - 流式传输避免内存溢出
+
+### 导出数据结构
+
+导出的Excel文件包含以下列：
+
+| 列名 | 字段 | 格式 |
+|------|------|------|
+| 序号 | 商品序号 | 数字居中 |
+| SPU编号 | 商品SPU编码 | 文本 |
+| 商品名称 | 商品名称快照 | 文本 |
+| SKU描述 | SKU描述快照 | 文本 |
+| 供应商 | 供应商名称 | 文本 |
+| 供应商链接 | 供应商链接 | 文本 |
+| 数量 | 商品数量 | 数字居中 |
+| 成本单价(¥) | 成本单价（人民币） | 金额格式 |
+| 成本小计(¥) | 成本小计（人民币） | 金额格式 |
+
+### 前端集成
+
+订单详情页面集成了Excel导出按钮：
+
+```mermaid
+sequenceDiagram
+participant Admin as 管理员
+participant UI as 订单详情页面
+participant ExportBtn as 导出按钮
+participant API as 导出API
+participant Browser as 浏览器
+Admin->>UI : 打开订单详情
+UI->>ExportBtn : 显示导出按钮
+ExportBtn->>ExportBtn : 验证权限
+ExportBtn->>API : 发送导出请求
+API->>API : 验证管理员权限
+API->>API : 获取订单数据
+API->>API : 过滤商品数据
+API->>API : 生成Excel文件
+API->>Browser : 返回Excel文件
+Browser->>Browser : 触发文件下载
+Browser-->>Admin : 下载完成
+```
+
+**图表来源**
+- [admin-orders-page.tsx:352-363](file://src/app/admin/orders/[id]/page.tsx#L352-L363)
+- [export-route.ts:6-146](file://src/app/api/admin/orders/[id]/export/route.ts#L6-L146)
+
+**章节来源**
+- [export-route.ts:6-146](file://src/app/api/admin/orders/[id]/export/route.ts#L6-L146)
+- [admin-orders-page.tsx:352-363](file://src/app/admin/orders/[id]/page.tsx#L352-L363)
 
 ## 供应商数据转换系统
 
@@ -433,6 +597,11 @@ Output-->>Source : 返回转换结果
    - **新增**：SPU识别成功率统计
    - **新增**：价格计算准确性验证
 
+5. **Excel导出诊断日志**
+   - **新增**：导出过程的详细日志记录
+   - **新增**：订单数据过滤和格式化过程
+   - **新增**：Excel文件生成和下载统计
+
 ### 日志记录机制
 
 ```mermaid
@@ -446,7 +615,9 @@ Processing --> Success[记录处理成功]
 Processing --> Error[记录处理错误]
 Success --> SupplierCheck[检查供应商转换]
 SupplierCheck --> SupplierLog[记录转换日志]
-SupplierLog --> End([完成])
+SupplierLog --> ExportCheck[检查Excel导出]
+ExportCheck --> ExportLog[记录导出日志]
+ExportLog --> End([完成])
 Error --> End
 ```
 
@@ -518,10 +689,12 @@ subgraph "原生模块支持"
 ExcelJS[ExcelJS]
 Sharp[Sharp]
 SupplierConverter[供应商转换器]
+ExportAPI[导出API]
 end
 External --> ExcelJS
 External --> Sharp
 External --> SupplierConverter
+External --> ExportAPI
 Output --> Standalone
 Images --> RemotePatterns
 ```
@@ -563,6 +736,11 @@ TSNode[ts-node]
 FS[fs]
 Path[path]
 end
+subgraph "导出功能依赖"
+Lucide[Lucide React]
+FramerMotion[framer-motion]
+Sonner[sonner]
+end
 ExcelParser --> ExcelJS
 ExcelParser --> ExcelJS2
 ImportSystem --> Prisma
@@ -579,6 +757,10 @@ Docker --> Nginx
 SupplierConverter --> TSNode
 SupplierConverter --> FS
 SupplierConverter --> Path
+ExportAPI --> ExcelJS
+ExportAPI --> Lucide
+ExportAPI --> FramerMotion
+ExportAPI --> Sonner
 ```
 
 **图表来源**
@@ -601,6 +783,8 @@ SupplierConverter --> Path
 7. **原生模块优化**：通过serverExternalPackages配置优化原生模块加载
 8. **供应商转换优化**：**新增**：批量处理供应商数据，支持大文件分块处理
 9. **Excel解析优化**：**新增**：ExcelJS替代xlsx，提升解析性能和兼容性
+10. **Excel导出优化**：**新增**：流式生成Excel文件，避免内存溢出
+11. **前端性能优化**：**新增**：导出按钮使用window.open实现异步下载
 
 ## 故障排除指南
 
@@ -622,35 +806,42 @@ SupplierConverter --> Path
    - 验证品类信息是否存在
    - 确认价格格式正确
 
-4. **生产环境部署问题**
+4. **Excel导出失败**
+   - **新增**：检查管理员权限验证
+   - **新增**：确认订单ID有效性
+   - **新增**：验证订单数据完整性
+   - **新增**：检查ExcelJS库版本兼容性
+
+5. **生产环境部署问题**
    - **新增**：检查Docker容器健康检查状态
    - **新增**：验证环境变量配置
    - **新增**：确认原生模块编译完成
 
-5. **图片处理失败**
+6. **图片处理失败**
    - **新增**：查看图像诊断日志
    - **新增**：检查R2存储配置
    - **新增**：验证图片格式支持
 
-6. **供应商转换失败**
+7. **供应商转换失败**
    - **新增**：检查源Excel文件格式
    - **新增**：验证供应商数据完整性
    - **新增**：查看转换器日志了解具体错误
 
-7. **ExcelJS迁移问题**
-   - **新增**：确认ExcelJS版本兼容性
-   - **新增**：检查工作表结构变化
-   - **新增**：验证图片提取逻辑
+8. **前端导出按钮失效**
+   - **新增**：检查window.open浏览器兼容性
+   - **新增**：确认导出API端点可用性
+   - **新增**：验证客户端权限状态
 
 **章节来源**
 - [import.ts:368-395](file://src/lib/actions/import.ts#L368-L395)
 - [route.ts:54-59](file://src/app/api/upload/excel/route.ts#L54-L59)
 - [parser.ts:64-112](file://src/lib/excel/parser.ts#L64-L112)
 - [convert-xindeyi-excel.ts:280-478](file://scripts/convert-xindeyi-excel.ts#L280-L478)
+- [export-route.ts:138-144](file://src/app/api/admin/orders/[id]/export/route.ts#L138-L144)
 
 ## 结论
 
-Excel导入系统是一个功能完整、架构清晰的商品数据批量导入解决方案。最新版本在原有优势基础上，新增了全面的调试诊断能力和优化的生产环境配置，并引入了供应商数据转换功能：
+Excel导入系统是一个功能完整、架构清晰的商品数据批量导入解决方案。最新版本在原有优势基础上，新增了全面的调试诊断能力和优化的生产环境配置，并引入了供应商数据转换功能和Excel导出功能：
 
 ### 主要优势
 
@@ -663,6 +854,7 @@ Excel导入系统是一个功能完整、架构清晰的商品数据批量导入
 7. **优化的部署配置**：确保系统在生产环境中的稳定运行
 8. **供应商数据转换**：**新增**：支持多种供应商格式的自动转换
 9. **ExcelJS迁移**：**新增**：提升解析性能和兼容性
+10. **Excel导出功能**：**新增**：提供管理员订单数据导出能力
 
 ### 技术创新
 
@@ -672,5 +864,7 @@ Excel导入系统是一个功能完整、架构清晰的商品数据批量导入
 4. **生产环境优化**：通过Docker多阶段构建和Next.js配置优化提升性能
 5. **可观测性增强**：支持生产环境的问题快速定位和解决
 6. **原生模块支持**：通过serverExternalPackages配置优化原生模块加载
+7. **Excel导出API**：**新增**：提供完整的订单数据导出功能
+8. **前端导出集成**：**新增**：在订单详情页面集成Excel导出按钮
 
 系统采用现代化的技术栈和最佳实践，具有良好的可扩展性和维护性，能够满足珠宝电商行业的复杂需求，并为未来的功能扩展奠定了坚实的基础。

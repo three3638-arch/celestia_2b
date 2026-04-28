@@ -163,6 +163,7 @@ export interface UpdateProductInput {
   gemTypes?: GemType[]
   metalColors?: MetalColor[]
   skus?: {
+    id?: string               // 已有 SKU 的 id，用于增量更新
     gemType: GemType
     metalColor: MetalColor
     mainStoneSize?: string
@@ -625,7 +626,10 @@ export async function createProduct(
  * 更新商品
  * - 验证 ADMIN 权限
  * - 更新基础信息
- * - 如果传入 skus，删除旧 SKU 并重建
+ * - 如果传入 skus，执行增量更新（而非全删重建）
+ *   - 有 id 且存在 → 更新
+ *   - 无 id → 新增
+ *   - 已有但未传 → 安全删除（被订单引用的保留）
  * - 如果传入 images，删除旧图片并重建
  * - 重新计算价格区间
  */
@@ -743,25 +747,71 @@ export async function updateProduct(
         data: updateData,
       })
 
-      // 如果传入 skus，删除旧 SKU 并重建
+      // 如果传入 skus，执行增量更新
       if (validatedData.skus && validatedData.skus.length > 0) {
-        await tx.productSku.deleteMany({
+        // 1. 获取当前数据库中该商品的所有 SKU
+        const existingSkus = await tx.productSku.findMany({
           where: { productId },
+          select: { id: true },
         })
+        const existingSkuIds = new Set(existingSkus.map(s => s.id))
 
-        await tx.productSku.createMany({
-          data: validatedData.skus.map((sku) => ({
-            productId,
-            skuCode: generateSkuCode(existingProduct.spuCode, sku),
-            gemType: sku.gemType,
-            metalColor: sku.metalColor,
-            mainStoneSize: sku.mainStoneSize,
-            size: sku.size,
-            chainLength: sku.chainLength,
-            stockStatus: sku.stockStatus ?? 'IN_STOCK',
-            referencePriceSar: sku.referencePriceSar ? new Decimal(sku.referencePriceSar) : null,
-          })),
-        })
+        // 2. 分类：有 id 且存在 → 更新；无 id → 新增；存在但未传 → 待删除
+        const skusToUpdate = validatedData.skus.filter(sku => sku.id && existingSkuIds.has(sku.id))
+        const skusToCreate = validatedData.skus.filter(sku => !sku.id)
+        const submittedIds = new Set(validatedData.skus.filter(sku => sku.id).map(sku => sku.id!))
+        const skuIdsToDelete = existingSkus.map(s => s.id).filter(id => !submittedIds.has(id))
+
+        // 3. 更新已有 SKU
+        for (const sku of skusToUpdate) {
+          await tx.productSku.update({
+            where: { id: sku.id },
+            data: {
+              gemType: sku.gemType,
+              metalColor: sku.metalColor,
+              mainStoneSize: sku.mainStoneSize,
+              size: sku.size,
+              chainLength: sku.chainLength,
+              stockStatus: sku.stockStatus ?? 'IN_STOCK',
+              referencePriceSar: sku.referencePriceSar ? new Decimal(sku.referencePriceSar) : null,
+            },
+          })
+        }
+
+        // 4. 新增 SKU
+        if (skusToCreate.length > 0) {
+          await tx.productSku.createMany({
+            data: skusToCreate.map((sku) => ({
+              productId,
+              skuCode: generateSkuCode(existingProduct.spuCode, sku),
+              gemType: sku.gemType,
+              metalColor: sku.metalColor,
+              mainStoneSize: sku.mainStoneSize,
+              size: sku.size,
+              chainLength: sku.chainLength,
+              stockStatus: sku.stockStatus ?? 'IN_STOCK',
+              referencePriceSar: sku.referencePriceSar ? new Decimal(sku.referencePriceSar) : null,
+            })),
+          })
+        }
+
+        // 5. 删除不再需要的 SKU（仅删除未被订单引用的）
+        if (skuIdsToDelete.length > 0) {
+          const referencedSkuIds = await tx.orderItem.findMany({
+            where: { skuId: { in: skuIdsToDelete } },
+            select: { skuId: true },
+            distinct: ['skuId'],
+          })
+          const referencedIds = new Set(referencedSkuIds.map(r => r.skuId))
+
+          const safeToDelete = skuIdsToDelete.filter(id => !referencedIds.has(id))
+          if (safeToDelete.length > 0) {
+            await tx.productSku.deleteMany({
+              where: { id: { in: safeToDelete } },
+            })
+          }
+          // 被订单引用的 SKU 保留在数据库中，确保订单历史数据完整性
+        }
       }
 
       // 如果传入 images，删除旧图片并重建

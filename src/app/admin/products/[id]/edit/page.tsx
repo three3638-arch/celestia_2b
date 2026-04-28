@@ -196,8 +196,9 @@ export default function EditProductPage() {
         sortOrder: index,
       }));
 
-      // 准备 SKU 数据
+      // 准备 SKU 数据（包含 id 用于增量更新）
       const skuData = skus.map((sku) => ({
+        ...(sku.id ? { id: sku.id } : {}),
         gemType: sku.gemType,
         metalColor: sku.metalColor,
         size: sku.size,
