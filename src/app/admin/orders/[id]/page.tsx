@@ -19,6 +19,7 @@ import {
   TrendingUp,
   ImageIcon,
   Calculator,
+  Download,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -349,6 +350,17 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
               {/* 右侧：操作按钮 */}
               <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    window.open(`/api/admin/orders/${order.id}/export`, '_blank')
+                  }}
+                  className="border-border bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  导出采购清单
+                </Button>
                 {canQuote && (
                   <Link href={`/admin/orders/${orderId}/quote`}>
                     <Button
