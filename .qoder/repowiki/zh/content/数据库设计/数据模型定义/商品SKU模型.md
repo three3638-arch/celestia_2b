@@ -7,6 +7,7 @@
 - [parser.ts](file://src/lib/excel/parser.ts)
 - [import.ts](file://src/lib/actions/import.ts)
 - [product.ts](file://src/lib/actions/product.ts)
+- [order.ts](file://src/lib/actions/order.ts)
 - [sku-selector.tsx](file://src/components/storefront/sku-selector.tsx)
 - [index.ts](file://src/types/index.ts)
 - [constants.ts](file://src/lib/constants.ts)
@@ -15,11 +16,11 @@
 
 ## 更新摘要
 **变更内容**
-- SKU模型从四维规格扩展到五维规格，新增主石尺寸维度
-- 笛卡尔积展开逻辑从四重循环升级到五重循环
-- SKU编码系统支持五维组合，格式为：{SPU编号}-{宝石缩写}-{金属缩写}-{主石尺寸}MM-{尺码或长度}
-- Excel导入模板和解析逻辑支持主石尺寸字段
-- 前端SKU选择器支持主石尺寸选择功能
+- 新增SKU增量更新机制，支持部分字段的原子性更新
+- 引入订单引用跟踪机制，确保历史订单数据完整性
+- 增强数据完整性保护，实现SKU删除的安全检查
+- 优化SKU编码生成逻辑，支持被订单引用的SKU代码保留
+- 完善SKU删除策略，区分可删除和不可删除的SKU
 
 ## 目录
 1. [简介](#简介)
@@ -30,16 +31,19 @@
 6. [五维规格系统](#五维规格系统)
 7. [笛卡尔积展开逻辑](#笛卡尔积展开逻辑)
 8. [SKU编码系统](#sku编码系统)
-9. [依赖关系分析](#依赖关系分析)
-10. [性能考虑](#性能考虑)
-11. [故障排除指南](#故障排除指南)
-12. [结论](#结论)
+9. [增量更新机制](#增量更新机制)
+10. [订单引用跟踪](#订单引用跟踪)
+11. [数据完整性保护](#数据完整性保护)
+12. [依赖关系分析](#依赖关系分析)
+13. [性能考虑](#性能考虑)
+14. [故障排除指南](#故障排除指南)
+15. [结论](#结论)
 
 ## 简介
 
 本文档详细介绍了Celestia珠宝零售系统中的商品SKU（Stock Keeping Unit）模型。SKU模型是库存管理的核心实体，负责管理具体商品规格、库存状态和相关业务逻辑。该模型基于Prisma ORM构建，采用PostgreSQL数据库存储，并实现了完整的级联删除策略以确保数据一致性。
 
-**最新更新**：SKU模型已从传统的四维规格系统扩展到五维规格系统，新增主石尺寸维度，显著提升了珠宝商品的规格管理能力和精确度。
+**最新更新**：SKU模型已从传统的四维规格系统扩展到五维规格系统，新增主石尺寸维度，显著提升了珠宝商品的规格管理能力和精确度。同时引入了增量更新机制、订单引用跟踪和更复杂的数据完整性保护策略。
 
 ## 项目结构
 
@@ -59,12 +63,17 @@ CONSTANTS[常量配置]
 EXCEL_PARSER[Excel解析器]
 SKU_EXPANDER[SKU展开器]
 IMPORT_ACTIONS[导入动作]
+PRODUCT_ACTIONS[产品动作]
+ORDER_ACTIONS[订单动作]
 end
 subgraph "业务逻辑"
 SKU_MODEL[SKU模型]
 PRODUCT_MODEL[产品模型]
 ORDER_MODEL[订单模型]
 FRONTEND_SELECTOR[SKU选择器]
+INCREMENTAL_UPDATE[增量更新]
+ORDER_TRACKING[订单跟踪]
+DATA_INTEGRITY[数据完整性]
 end
 PRISMA --> ENUMS
 PRISMA --> MODELS
@@ -78,6 +87,9 @@ MODELS --> SKU_MODEL
 MODELS --> PRODUCT_MODEL
 MODELS --> ORDER_MODEL
 FRONTEND_SELECTOR --> SKU_MODEL
+INCREMENTAL_UPDATE --> SKU_MODEL
+ORDER_TRACKING --> SKU_MODEL
+DATA_INTEGRITY --> SKU_MODEL
 ```
 
 **图表来源**
@@ -85,6 +97,8 @@ FRONTEND_SELECTOR --> SKU_MODEL
 - [sku-expander.ts:1-161](file://src/lib/excel/sku-expander.ts#L1-L161)
 - [parser.ts:1-185](file://src/lib/excel/parser.ts#L1-L185)
 - [import.ts:320-355](file://src/lib/actions/import.ts#L320-L355)
+- [product.ts:750-838](file://src/lib/actions/product.ts#L750-L838)
+- [order.ts:243-285](file://src/lib/actions/order.ts#L243-L285)
 
 **章节来源**
 - [schema.prisma:1-317](file://prisma/schema.prisma#L1-L317)
@@ -479,6 +493,133 @@ SKU选择器组件支持主石尺寸的可视化展示：
 - [product.ts:186-211](file://src/lib/actions/product.ts#L186-L211)
 - [sku-selector.tsx:337](file://src/components/storefront/sku-selector.tsx#L337)
 
+## 增量更新机制
+
+### 增量更新概述
+
+SKU模型现在支持增量更新机制，允许对现有SKU进行部分字段的原子性更新，而无需重建整个SKU集合。这一机制通过智能分类和事务性操作实现数据的一致性和完整性。
+
+### 增量更新流程
+
+```mermaid
+flowchart TD
+START[开始增量更新] --> GET_EXISTING[获取现有SKU]
+GET_EXISTING --> CLASSIFY[分类SKU]
+CLASSIFY --> UPDATE_EXISTING[更新现有SKU]
+UPDATE_EXISTING --> CREATE_NEW[创建新SKU]
+CREATE_NEW --> DELETE_UNUSED[删除不再需要的SKU]
+DELETE_UNUSED --> VERIFY_INTEGRITY[验证数据完整性]
+VERIFY_INTEGRITY --> END[更新完成]
+```
+
+**图表来源**
+- [product.ts:750-838](file://src/lib/actions/product.ts#L750-L838)
+
+### 增量更新实现细节
+
+#### SKU分类策略
+- **更新SKU**: 已存在且带有ID的SKU
+- **新建SKU**: 无ID的新SKU
+- **待删除SKU**: 在数据库中存在但在提交列表中不存在的SKU
+
+#### 事务性更新
+- **原子性**: 所有SKU操作在单个事务中执行
+- **回滚机制**: 任一操作失败时自动回滚
+- **并发安全**: 使用数据库锁防止并发冲突
+
+#### 唯一性保护
+- **SKU编码冲突检测**: 在创建新SKU前检查编码唯一性
+- **序号追加**: 发生冲突时自动追加序号后缀
+- **历史保留**: 被订单引用的SKU编码保持不变
+
+**章节来源**
+- [product.ts:750-838](file://src/lib/actions/product.ts#L750-L838)
+
+## 订单引用跟踪
+
+### 订单引用机制
+
+SKU模型现在具备订单引用跟踪能力，确保历史订单数据的完整性。系统能够识别哪些SKU已被订单引用，并在删除操作中避免破坏历史记录。
+
+### 订单引用检测
+
+```mermaid
+flowchart TD
+CHECK_REFERENCES[检查SKU引用] --> QUERY_REFERENCES[查询订单项]
+QUERY_REFERENCES --> DISTINCT_IDS[获取去重的SKU ID]
+DISTINCT_IDS --> SEPARATE_SAFE[分离安全删除的SKU]
+SEPARATE_SAFE --> KEEP_REFERENCED[保留被引用的SKU]
+KEEP_REFERENCED --> DELETE_SAFE[删除安全的SKU]
+DELETE_SAFE --> UPDATE_PRICES[更新价格范围]
+UPDATE_PRICES --> END[引用检查完成]
+```
+
+**图表来源**
+- [product.ts:821-837](file://src/lib/actions/product.ts#L821-L837)
+
+### 引用跟踪实现
+
+#### 引用检测逻辑
+- **引用查询**: 通过OrderItem表查询引用关系
+- **去重处理**: 使用distinct操作确保每个SKU只计算一次
+- **安全删除**: 仅删除未被任何订单引用的SKU
+
+#### 历史数据保护
+- **引用保留**: 被订单引用的SKU即使不再使用也保留
+- **价格维护**: 保留的历史SKU仍可用于历史订单的价格计算
+- **审计追踪**: 保留完整的SKU历史记录用于审计
+
+#### 业务影响
+- **SKU删除限制**: 已被订单引用的SKU不能直接删除
+- **替代方案**: 通过下架产品而非删除SKU来处理不再销售的商品
+- **数据一致性**: 确保历史订单的SKU信息保持不变
+
+**章节来源**
+- [product.ts:821-837](file://src/lib/actions/product.ts#L821-L837)
+
+## 数据完整性保护
+
+### 完整性保护机制
+
+SKU模型现在具备多层次的数据完整性保护机制，确保在各种操作中数据的一致性和准确性。
+
+### 完整性保护策略
+
+#### 外键约束保护
+- **级联删除**: 删除产品时自动删除所有相关SKU
+- **引用完整性**: 确保SKU引用的产品存在
+- **事务一致性**: 所有相关操作在单个事务中执行
+
+#### 业务规则保护
+- **SKU唯一性**: 通过skuCode确保SKU编码唯一
+- **枚举约束**: 通过枚举类型确保规格参数的有效性
+- **价格范围**: 自动计算和维护产品的最低最高价格
+
+#### 数据验证保护
+- **输入验证**: 所有SKU操作都经过严格的数据验证
+- **状态检查**: 操作前检查SKU的当前状态
+- **权限验证**: 确保只有授权用户才能执行敏感操作
+
+### 完整性检查流程
+
+```mermaid
+flowchart TD
+START[开始完整性检查] --> VALIDATE_INPUT[验证输入数据]
+VALIDATE_INPUT --> CHECK_CONSTRAINTS[检查约束条件]
+CHECK_CONSTRAINTS --> VERIFY_REFERENCES[验证引用关系]
+VERIFY_REFERENCES --> TEST_TRANSACTION[测试事务执行]
+TEST_TRANSACTION --> APPLY_CHANGES[应用更改]
+APPLY_CHANGES --> END[完整性检查通过]
+```
+
+**图表来源**
+- [product.ts:750-838](file://src/lib/actions/product.ts#L750-L838)
+- [order.ts:243-285](file://src/lib/actions/order.ts#L243-L285)
+
+**章节来源**
+- [product.ts:750-838](file://src/lib/actions/product.ts#L750-L838)
+- [order.ts:243-285](file://src/lib/actions/order.ts#L243-L285)
+
 ## 依赖关系分析
 
 ### 枚举依赖关系
@@ -595,6 +736,18 @@ SKU模型建立了多个索引来优化查询性能：
 - **查询优化**: 避免全表扫描，利用索引进行高效查询
 - **缓存机制**: 对热门SKU组合实施缓存策略
 
+### 增量更新性能优化
+
+#### 事务性能
+- **批量操作**: 使用createMany和updateMany减少数据库往返
+- **索引优化**: 为SKU ID和编码建立高效索引
+- **并发控制**: 使用适当的锁策略避免死锁
+
+#### 内存管理
+- **分批处理**: 对大量SKU更新实施分批处理策略
+- **垃圾回收**: 及时释放不再使用的内存
+- **连接池**: 优化数据库连接池配置
+
 ## 故障排除指南
 
 ### 常见问题及解决方案
@@ -627,6 +780,20 @@ SKU模型建立了多个索引来优化查询性能：
 - 验证维度配置的合理性
 - 实施展开数量上限控制
 
+#### 增量更新失败
+**问题**: 增量更新操作失败
+**解决方案**:
+- 检查事务状态
+- 验证SKU ID有效性
+- 实施回滚机制
+
+#### 订单引用删除失败
+**问题**: 无法删除被订单引用的SKU
+**解决方案**:
+- 检查引用关系
+- 实施替代删除策略
+- 提供用户指导
+
 ### 数据迁移注意事项
 
 #### 架构演进
@@ -649,6 +816,7 @@ SKU模型建立了多个索引来优化查询性能：
 - **业务适配**: 完整的库存状态管理满足珠宝行业需求
 - **性能优化**: 合理的索引设计和数据类型选择
 - **用户体验**: 前端SKU选择器提供直观的规格选择体验
+- **数据安全**: 增量更新机制和订单引用跟踪确保数据安全
 
 ### 五维规格系统的价值
 - **精确描述**: 主石尺寸维度提供了珠宝规格的精确描述
@@ -656,11 +824,18 @@ SKU模型建立了多个索引来优化查询性能：
 - **业务支持**: 满足珠宝定制化和个性化需求
 - **数据完整性**: 通过枚举和约束确保数据质量
 
+### 增量更新机制的价值
+- **效率提升**: 支持部分字段的原子性更新
+- **数据保护**: 通过事务性操作确保数据一致性
+- **历史保留**: 通过订单引用跟踪保护历史数据
+- **业务连续性**: 确保SKU更新不影响现有订单
+
 ### 未来改进方向
 - **智能库存**: 集成实时库存监控和预警机制
 - **规格标准化**: 建立更规范的五维规格参数标准
 - **性能监控**: 实施更详细的性能指标监控
 - **用户体验**: 优化SKU查询和管理界面
 - **移动端支持**: 增强移动端SKU选择的交互体验
+- **AI辅助**: 集成AI推荐系统优化SKU配置
 
 该SKU模型为整个珠宝零售系统的库存管理奠定了坚实基础，五维规格系统的引入进一步提升了系统的专业性和准确性，通过持续的优化和完善，将更好地支持业务发展和技术演进。
