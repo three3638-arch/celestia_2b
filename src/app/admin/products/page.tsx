@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+
 import {
   useReactTable,
   getCoreRowModel,
@@ -30,7 +30,12 @@ import {
   ChevronDown,
   X,
   FolderOpen,
+  Package,
+  RefreshCw,
 } from "lucide-react";
+
+import { Ali1688ImportDialog } from "@/components/admin/ali1688-import-dialog";
+import { Ali1688SyncDialog } from "@/components/admin/ali1688-sync-dialog";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,11 +88,11 @@ import {
   batchSetProductGroup,
   getOrCreateProductGroup,
 } from "@/lib/actions/product-group";
+import { BatchSetCategoryDialog } from "@/components/admin/batch-set-category-dialog";
 import type { AdminProductListItem } from "@/lib/actions/product";
 import type { Category } from "@prisma/client";
 
 export default function ProductsPage() {
-  const router = useRouter();
   const [products, setProducts] = useState<AdminProductListItem[]>([]);
   const [categories, setCategories] = useState<Pick<Category, "id" | "nameZh">[]>([]);
   const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
@@ -98,7 +103,7 @@ export default function ProductsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
 
@@ -117,6 +122,13 @@ export default function ProductsPage() {
   const [batchGroupClear, setBatchGroupClear] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
   const [groupPopoverOpen, setGroupPopoverOpen] = useState(false);
+
+  // 批量设置品类 Dialog
+  const [batchCategoryDialogOpen, setBatchCategoryDialogOpen] = useState(false);
+
+  // 1688 Dialog 状态
+  const [import1688Open, setImport1688Open] = useState(false);
+  const [sync1688Open, setSync1688Open] = useState(false);
 
   // 防抖搜索
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -234,7 +246,7 @@ export default function ProductsPage() {
     );
   };
 
-  const togglePageSelection = () => {
+  const togglePageSelection = useCallback(() => {
     const pageIds = products.map((p) => p.id);
     const allSelected = pageIds.every((id) => selectedProductIds.includes(id));
     if (allSelected) {
@@ -245,7 +257,7 @@ export default function ProductsPage() {
         return Array.from(newIds);
       });
     }
-  };
+  }, [products, selectedProductIds]);
 
   const isPageAllSelected =
     products.length > 0 && products.every((p) => selectedProductIds.includes(p.id));
@@ -518,7 +530,7 @@ export default function ProductsPage() {
         },
       },
     ],
-    [isPageAllSelected, selectedProductIds, products]
+    [isPageAllSelected, selectedProductIds, togglePageSelection]
   );
 
   const table = useReactTable({
@@ -554,6 +566,23 @@ export default function ProductsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              className="border-border hover:bg-card"
+              onClick={() => setImport1688Open(true)}
+            >
+              <Package className="h-4 w-4 mr-2" />
+              1688获取商品
+            </Button>
+            <Button
+              variant="outline"
+              className="border-border hover:bg-card"
+              onClick={() => setSync1688Open(true)}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              1688同步商品
+            </Button>
+            <div className="h-6 w-px bg-border" />
             <a href="/api/upload/template" download>
               <Button
                 variant="outline"
@@ -701,20 +730,31 @@ export default function ProductsPage() {
             <span className="text-sm text-foreground">
               已选择 <strong>{selectedProductIds.length}</strong> 个商品
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-border"
-              onClick={() => {
-                setBatchGroupDialogOpen(true);
-                setBatchGroupSearch("");
-                setBatchGroupSelectedId(null);
-                setBatchGroupClear(false);
-              }}
-            >
-              <FolderOpen className="h-4 w-4 mr-2" />
-              设置分组
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-border"
+                onClick={() => {
+                  setBatchGroupDialogOpen(true);
+                  setBatchGroupSearch("");
+                  setBatchGroupSelectedId(null);
+                  setBatchGroupClear(false);
+                }}
+              >
+                <FolderOpen className="h-4 w-4 mr-2" />
+                设置分组
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-border"
+                onClick={() => setBatchCategoryDialogOpen(true)}
+              >
+                <Tag className="h-4 w-4 mr-2" />
+                设置品类
+              </Button>
+            </div>
           </div>
         )}
 
@@ -783,28 +823,50 @@ export default function ProductsPage() {
                 <div className="text-sm text-muted-foreground">
                   共 {total} 条记录
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-border"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="text-sm text-muted-foreground px-2">
-                    第 {page} 页
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-border"
-                    onClick={() => setPage((p) => p + 1)}
-                    disabled={!hasMore}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">每页</span>
+                    <Select
+                      value={String(pageSize)}
+                      onValueChange={(value) => {
+                        setPageSize(Number(value))
+                        setPage(1)
+                      }}
+                    >
+                      <SelectTrigger className="w-[70px] h-8 bg-background border-border text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-muted-foreground">条</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-border"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm text-muted-foreground px-2">
+                      第 {page} 页
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-border"
+                      onClick={() => setPage((p) => p + 1)}
+                      disabled={!hasMore}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </>
@@ -950,6 +1012,35 @@ export default function ProductsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 批量设置品类 Dialog */}
+      <BatchSetCategoryDialog
+        open={batchCategoryDialogOpen}
+        onOpenChange={setBatchCategoryDialogOpen}
+        selectedProductIds={selectedProductIds}
+        onSuccess={() => {
+          setSelectedProductIds([])
+          loadProducts()
+        }}
+      />
+
+      {/* 1688获取商品 Dialog */}
+      <Ali1688ImportDialog
+        open={import1688Open}
+        onOpenChange={setImport1688Open}
+        onSuccess={() => {
+          loadProducts()
+        }}
+      />
+
+      {/* 1688同步商品 Dialog */}
+      <Ali1688SyncDialog
+        open={sync1688Open}
+        onOpenChange={setSync1688Open}
+        onSuccess={() => {
+          loadProducts()
+        }}
+      />
     </>
   );
 }

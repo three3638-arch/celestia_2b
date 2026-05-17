@@ -140,6 +140,8 @@ model Product {
   sortOrder       Int           @default(0) @map("sort_order")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
+  ali1688ProductId  String?     @map("ali1688_product_id")   // 1688商品ID（幂等依据）
+  ali1688SupplierId String?     @map("ali1688_supplier_id")  // 1688供应商ID（同步依据）
 
   category Category       @relation(fields: [categoryId], references: [id])
   group    ProductGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
@@ -167,6 +169,7 @@ model ProductSku {
   referencePriceSar Decimal?  @map("reference_price_sar") @db.Decimal(10, 2)
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
+  ali1688SkuId    String?     @map("ali1688_sku_id")       // 1688 SKU ID（幂等依据）
 
   product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]

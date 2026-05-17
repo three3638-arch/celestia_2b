@@ -7,6 +7,7 @@ import { formatZodErrors } from '@/lib/validations/error-formatter'
 import { batchTranslate } from '@/lib/excel/translator'
 import type { ApiResponse, PaginatedResponse, ProductFilterParams } from '@/types'
 import type { Product, ProductSku, ProductImage, Category, GemType, MetalColor, ProductStatus, StockStatus } from '@prisma/client'
+import { revalidatePath } from 'next/cache'
 import Decimal from 'decimal.js'
 
 // ============================================================
@@ -1126,5 +1127,52 @@ export async function getAdminProducts(params: {
   } catch (error) {
     console.error('Failed to get admin products:', error)
     return { items: [], total: 0, hasMore: false }
+  }
+}
+
+/**
+ * 批量设置商品品类
+ * - 验证 ADMIN 权限
+ * - 使用 updateMany 批量更新 categoryId
+ */
+export async function batchSetCategory(
+  productIds: string[],
+  categoryId: string
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    // 验证 ADMIN 权限
+    const user = await getCurrentUser()
+    if (!user || user.role !== 'ADMIN') {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    if (!productIds.length) {
+      return { success: false, error: '请选择商品' }
+    }
+
+    if (!categoryId) {
+      return { success: false, error: '请选择品类' }
+    }
+
+    // 验证品类是否存在
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { id: true },
+    })
+    if (!category) {
+      return { success: false, error: '品类不存在' }
+    }
+
+    await prisma.product.updateMany({
+      where: { id: { in: productIds } },
+      data: { categoryId },
+    })
+
+    revalidatePath('/admin/products')
+
+    return { success: true, message: `已成功设置 ${productIds.length} 个商品的品类` }
+  } catch (error) {
+    console.error('批量设置品类失败:', error)
+    return { success: false, error: '批量设置品类失败' }
   }
 }
