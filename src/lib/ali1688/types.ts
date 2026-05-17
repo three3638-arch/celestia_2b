@@ -54,6 +54,10 @@ export interface ProductDetail {
   productSaleInfo?: {
     priceRangeList?: { startQuantity: number; price: string }[];
   };
+  /** 供应商 OpenID，1688 体系下"同店搜索"的合法商家标识 */
+  sellerOpenId?: string;
+  /** 供应商公司名 */
+  companyName?: string;
 }
 
 export interface ProductSkuInfo {

@@ -15,7 +15,8 @@ import Decimal from 'decimal.js'
 // ============================================================
 
 export interface Fetch1688Params {
-  sellerOpenId: string
+  /** 该供应商任意一件商品的 1688 商品ID（offerId）；后端会用它反查出 sellerOpenId */
+  referenceOfferId: string
   maxCount: number
 }
 
@@ -33,6 +34,10 @@ export interface Fetch1688Result {
     products: Ali1688ProductDetail[]
     categoryMappings: CategoryMapping[]
     promotionUrls?: Record<number, string>
+    /** 由 referenceOfferId 反查出的供应商 OpenID，UI 需保留并在入库时回传 */
+    sellerOpenId: string
+    /** 由商详返回的公司名称，UI 可用来自动填充供应商名称建议 */
+    companyName?: string
   }
 }
 
@@ -219,15 +224,38 @@ export async function fetchProductsFrom1688(
       return { success: false, error: 'Unauthorized' }
     }
 
-    const { sellerOpenId, maxCount } = params
-    if (!sellerOpenId) {
-      return { success: false, error: 'sellerOpenId is required' }
+    const { referenceOfferId, maxCount } = params
+    if (!referenceOfferId) {
+      return { success: false, error: '请输入任一商品ID' }
+    }
+    const refOfferIdNum = Number(referenceOfferId)
+    if (!Number.isFinite(refOfferIdNum) || refOfferIdNum <= 0) {
+      return { success: false, error: '商品ID必须是有效的数字' }
     }
     if (!maxCount || maxCount <= 0) {
       return { success: false, error: 'maxCount must be positive' }
     }
 
-    // 2. 分页获取商品清单
+    // 2. 用商品ID反查供应商 OpenID（1688 同店搜索的 sellerOpenId 必须经此反查获得）
+    const refDetailResp = await queryProductDetail(refOfferIdNum)
+    if (!refDetailResp.success || !refDetailResp.result) {
+      return {
+        success: false,
+        error:
+          refDetailResp.message ||
+          '无法获取该商品的详情，请检查商品ID是否正确',
+      }
+    }
+    const sellerOpenId = refDetailResp.result.sellerOpenId
+    const companyName = refDetailResp.result.companyName
+    if (!sellerOpenId) {
+      return {
+        success: false,
+        error: '商品详情中未返回供应商OpenID，无法继续获取同店商品',
+      }
+    }
+
+    // 3. 分页获取商品清单
     const PAGE_SIZE = 20
     let currentPage = 1
     let hasMore = true
@@ -264,7 +292,12 @@ export async function fetchProductsFrom1688(
     if (allOfferItems.length === 0) {
       return {
         success: true,
-        data: { products: [], categoryMappings: [] },
+        data: {
+          products: [],
+          categoryMappings: [],
+          sellerOpenId,
+          companyName,
+        },
       }
     }
 
@@ -343,6 +376,8 @@ export async function fetchProductsFrom1688(
         products: validProducts,
         categoryMappings: Array.from(categoryMap.values()),
         promotionUrls,
+        sellerOpenId,
+        companyName,
       },
     }
   } catch (error) {

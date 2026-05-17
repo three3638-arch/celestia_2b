@@ -59,11 +59,14 @@ export function Ali1688ImportDialog({
   const [step, setStep] = useState<Step>("input");
 
   // Step 1: 输入参数
-  const [sellerOpenId, setSellerOpenId] = useState("");
+  const [referenceOfferId, setReferenceOfferId] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [spuPrefix, setSpuPrefix] = useState("");
   const [exchangeRate, setExchangeRate] = useState("0.5814");
   const [maxCount, setMaxCount] = useState("");
+
+  // 由后端商详反查得到的供应商 OpenID（用于入库阶段回传）
+  const [resolvedSellerOpenId, setResolvedSellerOpenId] = useState("");
 
   // Step 2: 获取结果
   const [fetchResult, setFetchResult] = useState<Fetch1688Result | null>(null);
@@ -88,28 +91,30 @@ export function Ali1688ImportDialog({
   // 是否可以开始获取
   const canStartFetch = useMemo(() => {
     return (
-      sellerOpenId.trim() !== "" &&
+      referenceOfferId.trim() !== "" &&
       supplierName.trim() !== "" &&
       spuPrefix.trim() !== "" &&
       maxCount.trim() !== "" &&
       Number(maxCount) > 0
     );
-  }, [sellerOpenId, supplierName, spuPrefix, maxCount]);
+  }, [referenceOfferId, supplierName, spuPrefix, maxCount]);
 
   // Step 1 → Step 2: 开始获取
   const handleStartFetch = async () => {
     setStep("fetching");
     setFetchError("");
     setFetchResult(null);
+    setResolvedSellerOpenId("");
 
     try {
       const result = await fetchProductsFrom1688({
-        sellerOpenId: sellerOpenId.trim(),
+        referenceOfferId: referenceOfferId.trim(),
         maxCount: Number(maxCount),
       });
 
       if (result.success && result.data) {
         setFetchResult(result);
+        setResolvedSellerOpenId(result.data.sellerOpenId);
 
         if (result.data.products.length === 0) {
           setFetchError("未获取到任何商品数据");
@@ -155,7 +160,7 @@ export function Ali1688ImportDialog({
         attributeMapping: attributeMapping as Record<string, string>,
         spuPrefix: spuPrefix.trim(),
         supplierName: supplierName.trim(),
-        sellerOpenId: sellerOpenId.trim(),
+        sellerOpenId: resolvedSellerOpenId,
         exchangeRate: Number(exchangeRate) || 0.5814,
         promotionUrls: fetchResult.data.promotionUrls,
       });
@@ -181,11 +186,12 @@ export function Ali1688ImportDialog({
     }
     // 重置所有状态
     setStep("input");
-    setSellerOpenId("");
+    setReferenceOfferId("");
     setSupplierName("");
     setSpuPrefix("");
     setExchangeRate("0.5814");
     setMaxCount("");
+    setResolvedSellerOpenId("");
     setFetchResult(null);
     setFetchError("");
     setAttributeMapping({});
@@ -284,14 +290,17 @@ export function Ali1688ImportDialog({
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">
-                供应商ID <span className="text-destructive">*</span>
+                任一商品ID <span className="text-destructive">*</span>
               </label>
               <Input
-                placeholder="输入 sellerOpenId"
-                value={sellerOpenId}
-                onChange={(e) => setSellerOpenId(e.target.value)}
+                placeholder="该供应商任一商品的ID（数字），如 1050414942928"
+                value={referenceOfferId}
+                onChange={(e) => setReferenceOfferId(e.target.value)}
                 className="bg-background border-border"
               />
+              <p className="text-xs text-muted-foreground">
+                系统将根据该商品ID自动反查供应商，并拉取其同店商品。可在 1688 商品详情页 URL（detail.1688.com/offer/<span className="font-medium">xxx</span>.html）中获取。
+              </p>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">
