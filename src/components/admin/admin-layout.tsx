@@ -9,6 +9,7 @@ import {
   Package,
   ShoppingBag,
   Users,
+  FolderOpen,
   LogOut,
   Menu,
 } from "lucide-react";
@@ -29,6 +30,7 @@ interface AdminLayoutProps {
 const sidebarItems = [
   { href: "/admin", icon: LayoutDashboard, label: "仪表盘" },
   { href: "/admin/products", icon: Package, label: "商品管理" },
+  { href: "/admin/groups", icon: FolderOpen, label: "分组管理" },
   { href: "/admin/orders", icon: ShoppingBag, label: "订单管理" },
   { href: "/admin/customers", icon: Users, label: "客户管理" },
 ];
@@ -36,6 +38,7 @@ const sidebarItems = [
 const pageTitles: Record<string, string> = {
   "/admin": "仪表盘",
   "/admin/products": "商品管理",
+  "/admin/groups": "分组管理",
   "/admin/orders": "订单管理",
   "/admin/customers": "客户管理",
 };

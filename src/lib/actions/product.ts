@@ -74,6 +74,8 @@ export interface ProductDetail {
   gemTypes: GemType[]
   metalColors: MetalColor[]
   status: ProductStatus
+  groupId: string | null
+  groupName: string | null
   minPriceSar: string | null
   maxPriceSar: string | null
   category: {
@@ -116,6 +118,8 @@ export interface AdminProductListItem {
   status: ProductStatus
   primaryImageUrl: string | null
   createdAt: Date
+  groupId: string | null
+  groupName: string | null
 }
 
 /** 创建商品输入 */
@@ -130,6 +134,7 @@ export interface CreateProductInput {
   supplier?: string
   supplierLink?: string
   categoryId: string
+  groupId?: string | null
   gemTypes: GemType[]
   metalColors: MetalColor[]
   skus: {
@@ -160,6 +165,7 @@ export interface UpdateProductInput {
   supplier?: string
   supplierLink?: string
   categoryId?: string
+  groupId?: string | null
   gemTypes?: GemType[]
   metalColors?: MetalColor[]
   skus?: {
@@ -266,6 +272,19 @@ export async function getProducts(
     hiddenProductIds = hiddenProducts.map(h => h.productId)
   }
 
+  // 获取当前登录客户的可见分组列表
+  let accessibleGroupIds: string[] = []
+  if (user?.role === 'CUSTOMER') {
+    const groupAccess = await prisma.userGroupAccess.findMany({
+      where: { userId: user.id },
+      select: { groupId: true },
+    })
+    accessibleGroupIds = groupAccess.map(g => g.groupId)
+    if (accessibleGroupIds.length === 0) {
+      return { items: [], total: 0, hasMore: false }
+    }
+  }
+
   // 构建 where 条件
   const where: Record<string, unknown> = {
     status: 'ACTIVE',
@@ -274,6 +293,11 @@ export async function getProducts(
   // 过滤用户隐藏的商品
   if (hiddenProductIds.length > 0) {
     where.id = { notIn: hiddenProductIds }
+  }
+
+  // 按分组权限过滤（仅 CUSTOMER）
+  if (accessibleGroupIds.length > 0) {
+    where.groupId = { in: accessibleGroupIds }
   }
 
   if (categoryId) {
@@ -414,6 +438,12 @@ export async function getProductDetail(productId: string): Promise<ProductDetail
       ...(isAdmin ? {} : { status: 'ACTIVE' }),
     },
     include: {
+      group: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       category: {
         select: {
           id: true,
@@ -452,6 +482,8 @@ export async function getProductDetail(productId: string): Promise<ProductDetail
     }),
     metalColors: product.metalColors,
     status: product.status,
+    groupId: product.group?.id ?? null,
+    groupName: product.group?.name ?? null,
     minPriceSar: product.minPriceSar
       ? (Math.ceil(parseFloat(product.minPriceSar.toString()) * markupRatio * 10) / 10).toString()
       : null,
@@ -574,6 +606,7 @@ export async function createProduct(
           supplier: validatedData.supplier,
           supplierLink: validatedData.supplierLink,
           categoryId: validatedData.categoryId,
+          groupId: validatedData.groupId,
           gemTypes: validatedData.gemTypes,
           metalColors: validatedData.metalColors,
           minPriceSar: min,
@@ -731,6 +764,7 @@ export async function updateProduct(
       if (validatedData.supplier !== undefined) updateData.supplier = validatedData.supplier
       if (validatedData.supplierLink !== undefined) updateData.supplierLink = validatedData.supplierLink
       if (validatedData.categoryId !== undefined) updateData.categoryId = validatedData.categoryId
+      if (validatedData.groupId !== undefined) updateData.groupId = validatedData.groupId
       if (validatedData.gemTypes !== undefined) updateData.gemTypes = validatedData.gemTypes
       if (validatedData.metalColors !== undefined) updateData.metalColors = validatedData.metalColors
 
@@ -978,6 +1012,7 @@ export async function getAdminProducts(params: {
   search?: string
   categoryId?: string
   status?: string
+  groupIds?: string[]
 }): Promise<PaginatedResponse<AdminProductListItem>> {
   try {
     // 验证 ADMIN 权限
@@ -986,7 +1021,7 @@ export async function getAdminProducts(params: {
       return { items: [], total: 0, hasMore: false }
     }
 
-    const { page = 1, pageSize = 20, search, categoryId, status } = params
+    const { page = 1, pageSize = 20, search, categoryId, status, groupIds } = params
     const skip = (page - 1) * pageSize
 
     // 构建 where 条件
@@ -1000,12 +1035,39 @@ export async function getAdminProducts(params: {
       where.status = status
     }
 
+    // 收集所有条件，避免 OR 被覆盖
+    const andConditions: Record<string, unknown>[] = []
+
+    if (groupIds && groupIds.length > 0) {
+      const hasUngrouped = groupIds.includes('ungrouped')
+      const realGroupIds = groupIds.filter(id => id !== 'ungrouped')
+
+      if (hasUngrouped && realGroupIds.length > 0) {
+        andConditions.push({
+          OR: [
+            { groupId: null },
+            { groupId: { in: realGroupIds } },
+          ],
+        })
+      } else if (hasUngrouped) {
+        andConditions.push({ groupId: null })
+      } else {
+        andConditions.push({ groupId: { in: realGroupIds } })
+      }
+    }
+
     if (search) {
-      where.OR = [
-        { nameZh: { contains: search, mode: 'insensitive' } },
-        { nameEn: { contains: search, mode: 'insensitive' } },
-        { spuCode: { contains: search, mode: 'insensitive' } },
-      ]
+      andConditions.push({
+        OR: [
+          { nameZh: { contains: search, mode: 'insensitive' } },
+          { nameEn: { contains: search, mode: 'insensitive' } },
+          { spuCode: { contains: search, mode: 'insensitive' } },
+        ],
+      })
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions
     }
 
     // 查询总数
@@ -1018,6 +1080,9 @@ export async function getAdminProducts(params: {
       take: pageSize,
       orderBy: { createdAt: 'desc' },
       include: {
+        group: {
+          select: { name: true },
+        },
         category: {
           select: { nameZh: true },
         },
@@ -1049,6 +1114,8 @@ export async function getAdminProducts(params: {
       primaryImageUrl:
         product.images[0]?.thumbnailUrl || product.images[0]?.url || null,
       createdAt: product.createdAt,
+      groupId: product.groupId,
+      groupName: product.group?.name ?? null,
     }))
 
     return {

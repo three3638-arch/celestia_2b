@@ -266,5 +266,28 @@
     "hidden": "مخفي",
     "manageHidden": "إدارة المنتجات المخفية",
     "restoreFailed": "فشل في الاستعادة"
+  },
+  "group": {
+    "management": "إدارة المجموعات",
+    "groupName": "اسم المجموعة",
+    "productCount": "عدد المنتجات",
+    "createGroup": "إنشاء مجموعة",
+    "rename": "إعادة تسمية",
+    "deleteGroup": "حذف المجموعة",
+    "deleteConfirm": "بعد الحذف، ستصبح المنتجات في هذه المجموعة غير مصنفة (لن تكون مرئية لجميع العملاء). هل تؤكد الحذف؟",
+    "assignUngrouped": "تعيين المنتجات غير المصنفة",
+    "ungrouped": "غير مصنفة",
+    "setGroup": "تعيين مجموعة",
+    "selectGroup": "اختيار مجموعة",
+    "enterGroupName": "أدخل اسم المجموعة الجديدة",
+    "manageVisibleGroups": "إدارة المجموعات المرئية",
+    "visibleGroups": "المجموعات المرئية",
+    "groupNameRequired": "يرجى إدخال اسم المجموعة",
+    "groupExists": "المجموعة موجودة بالفعل",
+    "groupProductCount": "{count} منتجات في هذه المجموعة",
+    "ungroupedCount": "عدد المنتجات غير المصنفة",
+    "selectOrCreateGroup": "اختر مجموعة موجودة أو أنشئ جديدة",
+    "batchSetGroup": "تعيين مجموعة للعناصر المحددة",
+    "selectedProducts": "تم تحديد {count} منتجات"
   }
 }

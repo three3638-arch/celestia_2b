@@ -99,6 +99,7 @@ model User {
   orders        Order[]
   favorites     ProductFavorite[]
   hiddenProducts ProductHidden[]
+  groupAccess   UserGroupAccess[]
 
   @@map("users")
 }
@@ -128,6 +129,7 @@ model Product {
   descriptionEn   String?       @map("description_en") @db.Text
   descriptionAr   String?       @map("description_ar") @db.Text
   categoryId      String        @map("category_id")
+  groupId         String?       @map("group_id")
   gemTypes        GemType[]     @map("gem_types")
   metalColors     MetalColor[]  @map("metal_colors")
   supplier        String?       @map("supplier")
@@ -140,6 +142,7 @@ model Product {
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
   category Category       @relation(fields: [categoryId], references: [id])
+  group    ProductGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
   skus     ProductSku[]
   images   ProductImage[]
   favorites ProductFavorite[]
@@ -313,4 +316,31 @@ model ProductHidden {
   @@index([userId])
   @@index([productId])
   @@map("product_hidden")
+}
+
+/// 商品分组
+model ProductGroup {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  products  Product[]
+  users     UserGroupAccess[]
+
+  @@map("product_groups")
+}
+
+/// 用户分组访问权限
+model UserGroupAccess {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  groupId   String   @map("group_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group ProductGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@map("user_group_access")
 }

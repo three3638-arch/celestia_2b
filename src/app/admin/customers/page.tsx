@@ -17,7 +17,8 @@ import { getCustomers, type CustomerListItem } from '@/lib/actions/customer'
 import { ApproveCustomerDialog } from '@/components/admin/approve-customer-dialog'
 import { UpdateMarkupDialog } from '@/components/admin/update-markup-dialog'
 import { ResetPasswordDialog } from '@/components/admin/reset-password-dialog'
-import { Search, ChevronLeft, ChevronRight, UserCheck, Edit3, Key } from 'lucide-react'
+import { ManageGroupsDialog } from '@/components/admin/manage-groups-dialog'
+import { Search, ChevronLeft, ChevronRight, UserCheck, Edit3, Key, Layers } from 'lucide-react'
 import { toast } from 'sonner'
 
 // 状态筛选类型
@@ -43,6 +44,7 @@ export default function CustomersPage() {
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [updateMarkupDialogOpen, setUpdateMarkupDialogOpen] = useState(false)
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false)
+  const [manageGroupsDialogOpen, setManageGroupsDialogOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(null)
   const [resetPasswordCustomer, setResetPasswordCustomer] = useState<CustomerListItem | null>(null)
 
@@ -100,6 +102,12 @@ export default function CustomersPage() {
   const handleUpdateMarkup = (customer: CustomerListItem) => {
     setSelectedCustomer(customer)
     setUpdateMarkupDialogOpen(true)
+  }
+
+  // 打开管理分组对话框
+  const handleManageGroups = (customer: CustomerListItem) => {
+    setSelectedCustomer(customer)
+    setManageGroupsDialogOpen(true)
   }
 
   // 打开重置密码对话框
@@ -178,6 +186,7 @@ export default function CustomersPage() {
                 <TableHead className="text-muted-foreground">手机号</TableHead>
                 <TableHead className="text-muted-foreground">公司</TableHead>
                 <TableHead className="text-muted-foreground">状态</TableHead>
+                <TableHead className="text-muted-foreground">可见分组</TableHead>
                 <TableHead className="text-muted-foreground">加价比例</TableHead>
                 <TableHead className="text-muted-foreground">订单数</TableHead>
                 <TableHead className="text-muted-foreground">注册时间</TableHead>
@@ -187,13 +196,13 @@ export default function CustomersPage() {
             <TableBody>
               {isLoading || isPending ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                     加载中...
                   </TableCell>
                 </TableRow>
               ) : customers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                     暂无客户数据
                   </TableCell>
                 </TableRow>
@@ -214,6 +223,11 @@ export default function CustomersPage() {
                       >
                         {STATUS_CONFIG[customer.status].label}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {customer.groups.length > 0
+                        ? customer.groups.map((g) => g.name).join('、')
+                        : '-'}
                     </TableCell>
                     <TableCell className="text-primary">
                       ×{customer.markupRatio}
@@ -245,6 +259,15 @@ export default function CustomersPage() {
                         </div>
                       ) : (
                         <div className="flex flex-wrap gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleManageGroups(customer)}
+                            className="border-border bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            <Layers className="h-4 w-4 mr-1" />
+                            管理分组
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
@@ -339,6 +362,14 @@ export default function CustomersPage() {
         customer={selectedCustomer}
         open={approveDialogOpen}
         onOpenChange={setApproveDialogOpen}
+        onSuccess={handleSuccess}
+      />
+
+      {/* 管理分组对话框 */}
+      <ManageGroupsDialog
+        customer={selectedCustomer}
+        open={manageGroupsDialogOpen}
+        onOpenChange={setManageGroupsDialogOpen}
         onSuccess={handleSuccess}
       />
 

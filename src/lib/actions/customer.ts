@@ -12,11 +12,21 @@ import type { z } from 'zod'
 
 import { hashPassword } from '@/lib/password'
 
+// 验证用户是否为 ADMIN
+async function requireAdmin() {
+  const user = await getCurrentUser()
+  if (!user || user.role !== 'ADMIN') {
+    throw new Error('Admin access required')
+  }
+  return user
+}
+
 // 字段名映射
 const customerFieldNameMap: Record<string, string> = {
   userId: '用户ID',
   markupRatio: '加价比例',
   newPassword: '新密码',
+  groupIds: '分组权限',
 }
 
 // 客户列表项类型
@@ -31,6 +41,7 @@ export interface CustomerListItem {
   preferredLang: string
   createdAt: Date
   orderCount: number
+  groups: { id: string; name: string }[]
 }
 
 // 获取客户列表（分页 + 搜索 + 状态筛选）
@@ -90,16 +101,17 @@ export async function getCustomers(params: {
       skip,
       take: pageSize,
       orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        phone: true,
-        name: true,
-        company: true,
-        role: true,
-        status: true,
-        markupRatio: true,
-        preferredLang: true,
-        createdAt: true,
+      include: {
+        groupAccess: {
+          include: {
+            group: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
         _count: {
           select: {
             orders: true,
@@ -120,6 +132,10 @@ export async function getCustomers(params: {
       preferredLang: user.preferredLang,
       createdAt: user.createdAt,
       orderCount: user._count.orders,
+      groups: user.groupAccess.map((ga) => ({
+        id: ga.group.id,
+        name: ga.group.name,
+      })),
     }))
 
     return {
@@ -141,6 +157,7 @@ export async function getCustomers(params: {
 export async function approveCustomer(params: {
   userId: string
   markupRatio: number
+  groupIds: string[]
 }): Promise<ApiResponse> {
   try {
     // 验证当前用户身份
@@ -161,15 +178,29 @@ export async function approveCustomer(params: {
       }
     }
 
-    const { userId, markupRatio } = validation.data
+    const { userId, markupRatio, groupIds } = validation.data
 
-    // 更新用户状态
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        status: UserStatus.ACTIVE,
-        markupRatio,
-      },
+    // 在事务中更新用户状态并创建分组权限
+    await prisma.$transaction(async (tx) => {
+      // 更新用户状态
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          status: UserStatus.ACTIVE,
+          markupRatio,
+        },
+      })
+
+      // 批量创建分组权限
+      if (groupIds.length > 0) {
+        await tx.userGroupAccess.createMany({
+          data: groupIds.map((groupId) => ({
+            userId,
+            groupId,
+          })),
+          skipDuplicates: true,
+        })
+      }
     })
 
     // 刷新缓存
@@ -184,6 +215,49 @@ export async function approveCustomer(params: {
     return {
       success: false,
       error: '审核客户失败，请稍后重试',
+    }
+  }
+}
+
+// 更新客户分组权限
+export async function updateCustomerGroups(
+  userId: string,
+  groupIds: string[]
+): Promise<ApiResponse> {
+  try {
+    await requireAdmin()
+
+    // 在事务中先删除旧权限，再创建新权限
+    await prisma.$transaction(async (tx) => {
+      // 删除该用户所有现有分组权限
+      await tx.userGroupAccess.deleteMany({
+        where: { userId },
+      })
+
+      // 批量创建新的分组权限
+      if (groupIds.length > 0) {
+        await tx.userGroupAccess.createMany({
+          data: groupIds.map((groupId) => ({
+            userId,
+            groupId,
+          })),
+          skipDuplicates: true,
+        })
+      }
+    })
+
+    // 刷新缓存
+    revalidatePath('/admin/customers')
+
+    return {
+      success: true,
+      message: '客户分组权限已更新',
+    }
+  } catch (error) {
+    console.error('更新客户分组权限失败:', error)
+    return {
+      success: false,
+      error: '更新客户分组权限失败，请稍后重试',
     }
   }
 }

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, ChevronsUpDown, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
 
 import { FormGroup } from "@/components/ui/form-group";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -26,6 +39,7 @@ import { SkuEditor, type SkuItem } from "@/components/admin/sku-editor";
 import { ImageUploader, type ImageItem } from "@/components/admin/image-uploader";
 import { createProduct } from "@/lib/actions/product";
 import { getCategories } from "@/lib/actions/category";
+import { getProductGroups, getOrCreateProductGroup } from "@/lib/actions/product-group";
 import type { Category, GemType, MetalColor } from "@prisma/client";
 
 const gemTypeOptions: { value: GemType; label: string }[] = [
@@ -46,6 +60,7 @@ export default function NewProductPage() {
   const [error, setError] = useState("");
   const [categories, setCategories] = useState<Pick<Category, "id" | "nameZh">[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
 
   // 表单状态
   const [formData, setFormData] = useState({
@@ -63,6 +78,11 @@ export default function NewProductPage() {
     metalColors: [] as MetalColor[],
   });
 
+  const [groupId, setGroupId] = useState<string | null>(null);
+  const [newGroupName, setNewGroupName] = useState<string | null>(null);
+  const [groupPopoverOpen, setGroupPopoverOpen] = useState(false);
+  const [groupSearch, setGroupSearch] = useState("");
+
   const [skus, setSkus] = useState<SkuItem[]>([
     {
       gemType: "MOISSANITE",
@@ -75,12 +95,16 @@ export default function NewProductPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // 加载品类列表
+  // 加载品类和分组列表
   useEffect(() => {
     async function loadCategories() {
       try {
-        const data = await getCategories();
+        const [data, groupsData] = await Promise.all([
+          getCategories(),
+          getProductGroups(),
+        ]);
         setCategories(data);
+        setGroups(groupsData);
       } catch (err) {
         console.error("Failed to load categories:", err);
         setError("加载品类列表失败");
@@ -135,6 +159,15 @@ export default function NewProductPage() {
     setError("");
 
     try {
+      // 处理分组：如有新分组名称，先创建
+      let finalGroupId = groupId;
+      if (newGroupName) {
+        const groupResult = await getOrCreateProductGroup(newGroupName);
+        if (groupResult.success && groupResult.data) {
+          finalGroupId = groupResult.data.id;
+        }
+      }
+
       // 准备图片数据
       const imageData = images.map((img, index) => ({
         url: img.url,
@@ -164,6 +197,7 @@ export default function NewProductPage() {
         supplier: formData.supplier || undefined,
         supplierLink: formData.supplierLink || undefined,
         categoryId: formData.categoryId,
+        groupId: finalGroupId,
         gemTypes: formData.gemTypes,
         metalColors: formData.metalColors,
         skus: skuData,
@@ -249,7 +283,7 @@ export default function NewProductPage() {
                 <CardTitle className="text-lg text-foreground">基本信息</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* SPU 编码 */}
                   <FormGroup
                     label="SPU 编码"
@@ -297,6 +331,85 @@ export default function NewProductPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </FormGroup>
+
+                  {/* 分组 */}
+                  <FormGroup label="分组" htmlFor="group">
+                    <Popover open={groupPopoverOpen} onOpenChange={setGroupPopoverOpen}>
+                      <PopoverTrigger className="flex w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring outline-none">
+                        {newGroupName ?? groups.find(g => g.id === groupId)?.name ?? "选择分组"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-0" align="start">
+                        <Command>
+                          <CommandInput
+                            placeholder="搜索或输入新分组"
+                            value={groupSearch}
+                            onValueChange={setGroupSearch}
+                          />
+                          <CommandList>
+                            <CommandEmpty>
+                              {groupSearch.trim() ? "无匹配分组" : "暂无分组"}
+                            </CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                onSelect={() => {
+                                  setGroupId(null);
+                                  setNewGroupName(null);
+                                  setGroupPopoverOpen(false);
+                                  setGroupSearch("");
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    groupId === null && newGroupName === null ? "opacity-100" : "opacity-0"
+                                  }`}
+                                />
+                                无分组
+                              </CommandItem>
+                              {groups
+                                .filter(g =>
+                                  g.name.toLowerCase().includes(groupSearch.toLowerCase())
+                                )
+                                .map((group) => (
+                                  <CommandItem
+                                    key={group.id}
+                                    onSelect={() => {
+                                      setGroupId(group.id);
+                                      setNewGroupName(null);
+                                      setGroupPopoverOpen(false);
+                                      setGroupSearch("");
+                                    }}
+                                  >
+                                    <Check
+                                      className={`mr-2 h-4 w-4 ${
+                                        groupId === group.id ? "opacity-100" : "opacity-0"
+                                      }`}
+                                    />
+                                    {group.name}
+                                  </CommandItem>
+                                ))}
+                              {groupSearch.trim() &&
+                                !groups.some(
+                                  g => g.name.toLowerCase() === groupSearch.trim().toLowerCase()
+                                ) && (
+                                  <CommandItem
+                                    onSelect={() => {
+                                      setNewGroupName(groupSearch.trim());
+                                      setGroupId(null);
+                                      setGroupPopoverOpen(false);
+                                      setGroupSearch("");
+                                    }}
+                                  >
+                                    <Check className="mr-2 h-4 w-4 opacity-0" />
+                                    创建 "{groupSearch.trim()}" 分组
+                                  </CommandItem>
+                                )}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </FormGroup>
                 </div>
 

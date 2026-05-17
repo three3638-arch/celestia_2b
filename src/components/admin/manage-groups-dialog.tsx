@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -10,43 +10,38 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { approveCustomer } from '@/lib/actions/customer'
+import { updateCustomerGroups } from '@/lib/actions/customer'
 import { getProductGroups } from '@/lib/actions/product-group'
-import { DEFAULT_MARKUP_RATIO } from '@/lib/constants'
 import { toast } from 'sonner'
 import type { CustomerListItem } from '@/lib/actions/customer'
 
-interface ApproveCustomerDialogProps {
+interface ManageGroupsDialogProps {
   customer: CustomerListItem | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
 }
 
-export function ApproveCustomerDialog({
+export function ManageGroupsDialog({
   customer,
   open,
   onOpenChange,
   onSuccess,
-}: ApproveCustomerDialogProps) {
-  const [markupRatio, setMarkupRatio] = useState<string>(DEFAULT_MARKUP_RATIO.toString())
+}: ManageGroupsDialogProps) {
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([])
   const [allGroups, setAllGroups] = useState<{ id: string; name: string }[]>([])
   const [groupsLoading, setGroupsLoading] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  // 当对话框打开时，重置加价比例并加载分组
-  const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen && customer) {
-      setMarkupRatio(DEFAULT_MARKUP_RATIO.toString())
-      setSelectedGroupIds([])
+  // 当对话框打开时，加载分组并设置初始选中状态
+  useEffect(() => {
+    if (open && customer) {
+      setSelectedGroupIds(customer.groups.map((g) => g.id))
       loadGroups()
     }
-    onOpenChange(newOpen)
-  }
+  }, [open, customer])
 
   const loadGroups = async () => {
     setGroupsLoading(true)
@@ -71,29 +66,19 @@ export function ApproveCustomerDialog({
   const handleSubmit = async () => {
     if (!customer) return
 
-    const ratio = parseFloat(markupRatio)
-    if (isNaN(ratio) || ratio <= 0) {
-      toast.error('加价比例必须大于0')
-      return
-    }
-
     setIsLoading(true)
     try {
-      const result = await approveCustomer({
-        userId: customer.id,
-        markupRatio: ratio,
-        groupIds: selectedGroupIds,
-      })
+      const result = await updateCustomerGroups(customer.id, selectedGroupIds)
 
       if (result.success) {
-        toast.success(result.message || '客户审核通过')
+        toast.success(result.message || '分组权限已更新')
         onOpenChange(false)
         onSuccess()
       } else {
-        toast.error(result.error || '审核失败')
+        toast.error(result.error || '更新失败')
       }
     } catch {
-      toast.error('审核过程中发生错误')
+      toast.error('更新过程中发生错误')
     } finally {
       setIsLoading(false)
     }
@@ -102,12 +87,12 @@ export function ApproveCustomerDialog({
   if (!customer) return null
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="bg-card border-border text-foreground">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-card border-border text-foreground max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-foreground">审核客户</DialogTitle>
+          <DialogTitle className="text-foreground">管理可见分组</DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            审核通过后，客户将可以正常下单。
+            管理该客户可见的商品分组。
           </DialogDescription>
         </DialogHeader>
 
@@ -115,42 +100,18 @@ export function ApproveCustomerDialog({
           {/* 客户信息 */}
           <div className="space-y-3 rounded-lg bg-background p-4">
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">姓名</span>
+              <span className="text-sm text-muted-foreground">客户姓名</span>
               <span className="text-sm text-foreground">{customer.name}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">手机号</span>
-              <span className="text-sm text-foreground">{customer.phone}</span>
+              <span className="text-sm text-muted-foreground">当前可见分组</span>
+              <span className="text-sm text-foreground">
+                {customer.groups.length > 0 ? customer.groups.map((g) => g.name).join('、') : '无'}
+              </span>
             </div>
-            {customer.company && (
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">公司</span>
-                <span className="text-sm text-foreground">{customer.company}</span>
-              </div>
-            )}
           </div>
 
-          {/* 加价比例输入 */}
-          <div className="space-y-2">
-            <Label htmlFor="markupRatio" className="text-foreground">
-              加价比例
-            </Label>
-            <Input
-              id="markupRatio"
-              type="number"
-              step="0.01"
-              min="0.01"
-              value={markupRatio}
-              onChange={(e) => setMarkupRatio(e.target.value)}
-              className="bg-background border-border text-foreground focus:border-primary focus:ring-primary"
-              placeholder="请输入加价比例"
-            />
-            <p className="text-xs text-muted-foreground">
-              加价比例将应用于该客户的所有订单报价。例如 1.15 表示在成本价基础上加价 15%。
-            </p>
-          </div>
-
-          {/* 可见分组 */}
+          {/* 分组列表 */}
           <div className="space-y-2">
             <Label className="text-foreground">可见分组</Label>
             <div className="space-y-2 rounded-lg bg-background p-4 max-h-48 overflow-y-auto">
@@ -162,12 +123,12 @@ export function ApproveCustomerDialog({
                 allGroups.map((group) => (
                   <div key={group.id} className="flex items-center space-x-2">
                     <Checkbox
-                      id={`group-${group.id}`}
+                      id={`manage-group-${group.id}`}
                       checked={selectedGroupIds.includes(group.id)}
                       onCheckedChange={(checked) => handleGroupToggle(group.id, checked === true)}
                     />
                     <Label
-                      htmlFor={`group-${group.id}`}
+                      htmlFor={`manage-group-${group.id}`}
                       className="text-sm text-foreground cursor-pointer"
                     >
                       {group.name}
@@ -176,9 +137,6 @@ export function ApproveCustomerDialog({
                 ))
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              选中的分组将对该客户可见，不选则客户看不到任何分组商品。
-            </p>
           </div>
         </div>
 
@@ -196,7 +154,7 @@ export function ApproveCustomerDialog({
             disabled={isLoading}
             className="bg-primary text-primary-foreground hover:bg-accent"
           >
-            {isLoading ? '处理中...' : '通过审核'}
+            {isLoading ? '保存中...' : '保存'}
           </Button>
         </DialogFooter>
       </DialogContent>

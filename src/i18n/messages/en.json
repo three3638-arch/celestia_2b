@@ -266,5 +266,28 @@
     "hidden": "Hidden",
     "manageHidden": "Manage hidden products",
     "restoreFailed": "Failed to restore"
+  },
+  "group": {
+    "management": "Group Management",
+    "groupName": "Group Name",
+    "productCount": "Product Count",
+    "createGroup": "Create Group",
+    "rename": "Rename",
+    "deleteGroup": "Delete Group",
+    "deleteConfirm": "After deletion, products in this group will become ungrouped (invisible to all customers). Confirm deletion?",
+    "assignUngrouped": "Assign Ungrouped Products",
+    "ungrouped": "Ungrouped",
+    "setGroup": "Set Group",
+    "selectGroup": "Select Group",
+    "enterGroupName": "Enter new group name",
+    "manageVisibleGroups": "Manage Visible Groups",
+    "visibleGroups": "Visible Groups",
+    "groupNameRequired": "Please enter a group name",
+    "groupExists": "Group already exists",
+    "groupProductCount": "{count} products in this group",
+    "ungroupedCount": "Ungrouped Products",
+    "selectOrCreateGroup": "Select existing group or create new",
+    "batchSetGroup": "Batch Set Group",
+    "selectedProducts": "{count} products selected"
   }
 }

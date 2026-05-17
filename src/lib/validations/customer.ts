@@ -4,6 +4,7 @@ import { z } from 'zod'
 export const approveCustomerSchema = z.object({
   userId: z.string().min(1, '用户ID不能为空'),
   markupRatio: z.number().positive('加价比例必须大于0'),
+  groupIds: z.array(z.string()).default([]),
 })
 
 // 更新加价比例 Schema

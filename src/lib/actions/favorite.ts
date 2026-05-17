@@ -117,9 +117,29 @@ export async function getFavoriteProducts(params: {
     const user = await requireActiveUser()
     const { cursor, pageSize = 20 } = params
 
+    // 获取客户的可见分组列表
+    let accessibleGroupIds: string[] = []
+    if (user.role === 'CUSTOMER') {
+      const groupAccess = await prisma.userGroupAccess.findMany({
+        where: { userId: user.id },
+        select: { groupId: true },
+      })
+      accessibleGroupIds = groupAccess.map(g => g.groupId)
+      if (accessibleGroupIds.length === 0) {
+        return { items: [], total: 0, hasMore: false }
+      }
+    }
+
     // 构建查询条件
     const where: Record<string, unknown> = {
       userId: user.id,
+    }
+
+    // 按分组权限过滤商品（仅 CUSTOMER）
+    if (accessibleGroupIds.length > 0) {
+      where.product = {
+        groupId: { in: accessibleGroupIds },
+      }
     }
 
     // 游标条件
