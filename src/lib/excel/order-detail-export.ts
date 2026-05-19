@@ -16,6 +16,8 @@ interface OrderItemWithRelations {
   settlementQty: number | null
   settlementPriceCny: Decimal | null
   sku: {
+    id: string
+    skuCode: string
     productId: string
     product: {
       id: string
@@ -93,7 +95,7 @@ export async function generateOrderDetailExcel(order: OrderForExport): Promise<U
   // 第3行：空行
 
   // 第4行：表头
-  const headers = ['商品ID', 'SKU ID', '图片', '数量', '客户单价(SAR)', '合计(SAR)']
+  const headers = ['SPU编码', 'SKU编码', '图片', '数量', '客户单价(SAR)', '合计(SAR)']
   const headerRow = worksheet.getRow(4)
   headers.forEach((header, index) => {
     const cell = headerRow.getCell(index + 1)
@@ -109,8 +111,8 @@ export async function generateOrderDetailExcel(order: OrderForExport): Promise<U
   headerRow.height = 22
 
   // 设置列宽
-  worksheet.getColumn(1).width = 20   // 商品ID
-  worksheet.getColumn(2).width = 20   // SKU ID
+  worksheet.getColumn(1).width = 20   // SPU编码
+  worksheet.getColumn(2).width = 20   // SKU编码
   worksheet.getColumn(3).width = 15   // 图片
   worksheet.getColumn(4).width = 10   // 数量
   worksheet.getColumn(5).width = 16   // 客户单价(SAR)
@@ -177,8 +179,8 @@ export async function generateOrderDetailExcel(order: OrderForExport): Promise<U
     totalQty += qty
     totalAmount += subtotal
 
-    row.getCell(1).value = item.sku.product.id
-    row.getCell(2).value = item.skuId
+    row.getCell(1).value = item.sku.product.spuCode
+    row.getCell(2).value = item.sku.skuCode
     row.getCell(3).value = '' // 图片列占位，后续插入图片
     row.getCell(4).value = qty
     row.getCell(5).value = unitPriceSar
