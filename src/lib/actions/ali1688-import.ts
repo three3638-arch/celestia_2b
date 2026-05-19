@@ -237,8 +237,28 @@ export async function fetchProductsFrom1688(
     }
 
     // 2. 用商品ID反查供应商 OpenID（1688 同店搜索的 sellerOpenId 必须经此反查获得）
-    const refDetailResp = await queryProductDetail(refOfferIdNum)
+    console.log('[fetch1688] reverse-lookup start, offerId=', refOfferIdNum)
+    let refDetailResp
+    try {
+      refDetailResp = await queryProductDetail(refOfferIdNum)
+    } catch (e) {
+      console.error('[fetch1688] queryProductDetail threw:', e)
+      return {
+        success: false,
+        error: `调用1688商详接口异常：${e instanceof Error ? e.message : String(e)}`,
+      }
+    }
+    console.log(
+      '[fetch1688] reverse-lookup raw response:',
+      JSON.stringify(refDetailResp).slice(0, 1500)
+    )
     if (!refDetailResp.success || !refDetailResp.result) {
+      console.error(
+        '[fetch1688] reverse-lookup failed: success=',
+        refDetailResp.success,
+        'message=',
+        refDetailResp.message
+      )
       return {
         success: false,
         error:
@@ -248,6 +268,12 @@ export async function fetchProductsFrom1688(
     }
     const sellerOpenId = refDetailResp.result.sellerOpenId
     const companyName = refDetailResp.result.companyName
+    console.log(
+      '[fetch1688] reverse-lookup ok, sellerOpenId=',
+      sellerOpenId,
+      'companyName=',
+      companyName
+    )
     if (!sellerOpenId) {
       return {
         success: false,
