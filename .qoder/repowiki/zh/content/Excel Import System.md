@@ -21,7 +21,11 @@
 - [next.config.ts](file://next.config.ts)
 - [order.ts](file://src/lib/actions/order.ts)
 - [export-route.ts](file://src/app/api/admin/orders/[id]/export/route.ts)
+- [export-order-route.ts](file://src/app/api/admin/orders/[id]/export-order/route.ts)
+- [auth-export-route.ts](file://src/app/api/auth/orders/[id]/export/route.ts)
+- [order-detail-export.ts](file://src/lib/excel/order-detail-export.ts)
 - [admin-orders-page.tsx](file://src/app/admin/orders/[id]/page.tsx)
+- [storefront-orders-page.tsx](file://src/app/[locale]/storefront/orders/[id]/page.tsx)
 - [index.ts](file://docs/1688 demo/integration-1688/index.ts)
 - [client.ts](file://docs/1688 demo/integration-1688/client.ts)
 - [config.ts](file://docs/1688 demo/integration-1688/config.ts)
@@ -35,21 +39,19 @@
 - [ali1688-sync-dialog.tsx](file://src/components/admin/ali1688-sync-dialog.tsx)
 - [ali1688-import.ts](file://src/lib/actions/ali1688-import.ts)
 - [20260517000001_add_ali1688_fields/migration.sql](file://prisma/migrations/20260517000001_add_ali1688_fields/migration.sql)
+- [zh.json](file://src/i18n/messages/zh.json)
+- [en.json](file://src/i18n/messages/en.json)
+- [ar.json](file://src/i18n/messages/ar.json)
 </cite>
 
 ## 更新摘要
 **变更内容**
-- 增强了调试诊断系统，新增了1688集成诊断日志、Excel导出诊断日志、供应商转换诊断日志等全面的日志记录功能，提升了生产环境的可观测性
-- 新增了管理员订单Excel导出功能，包括API端点实现、Excel工作簿生成、数据过滤机制、货币格式化等功能
-- 在前端订单详情页面集成了Excel导出下载按钮
-- 更新了ExcelJS库的使用，支持更丰富的Excel格式化功能
-- 增强了订单数据的安全控制和权限验证机制
-- 完善了错误处理和响应机制
-- **新增**：1688集成系统，提供完整的阿里巴巴1688供应商商品导入和同步功能
-- **新增**：1688商品导入对话框，支持批量商品获取、属性映射和一键入库
-- **新增**：1688商品同步对话框，支持实时价格同步和库存状态更新
-- **新增**：1688 API签名认证、图片上传、以图搜商品等核心功能模块
-- **新增**：数据库字段扩展，支持1688商品ID和SKU ID的存储
+- 新增完整的订单导出功能实现，包括管理员和客户两个权限级别的Excel导出API
+- 新增专用的Excel生成库，支持图片嵌入、格式化和国际化标题
+- 在前端订单详情页面集成了导出按钮，支持多语言国际化
+- 新增两个独立的API端点：管理员采购清单导出和客户订单明细导出
+- 完善了权限控制、数据过滤和文件生成机制
+- 增强了ExcelJS库的使用，支持更丰富的Excel格式化功能
 
 ## 目录
 1. [项目概述](#项目概述)
@@ -58,20 +60,24 @@
 4. [架构概览](#架构概览)
 5. [详细组件分析](#详细组件分析)
 6. [Excel导出功能](#excel导出功能)
-7. [供应商数据转换系统](#供应商数据转换系统)
-8. [1688集成系统](#1688集成系统)
-9. [调试诊断系统](#调试诊断系统)
-10. [部署配置](#部署配置)
-11. [依赖关系分析](#依赖关系分析)
-12. [性能考虑](#性能考虑)
-13. [故障排除指南](#故障排除指南)
-14. [结论](#结论)
+7. [Excel导出库](#excel导出库)
+8. [权限控制系统](#权限控制系统)
+9. [前端集成](#前端集成)
+10. [国际化支持](#国际化支持)
+11. [供应商数据转换系统](#供应商数据转换系统)
+12. [1688集成系统](#1688集成系统)
+13. [调试诊断系统](#调试诊断系统)
+14. [部署配置](#部署配置)
+15. [依赖关系分析](#依赖关系分析)
+16. [性能考虑](#性能考虑)
+17. [故障排除指南](#故障排除指南)
+18. [结论](#结论)
 
 ## 项目概述
 
 Excel导入系统是一个完整的商品数据批量导入解决方案，专为珠宝电商平台设计。该系统支持从Excel文件中批量导入商品信息，包括商品基本信息、SKU规格、图片资源等，并提供完整的数据验证、AI翻译和数据库持久化功能。
 
-**新增** 系统现已扩展为包含完整的数据导入和导出功能，支持管理员对订单数据进行Excel格式的导出，便于采购和财务结算。同时集成了阿里巴巴1688供应商平台的深度集成，提供从1688批量获取商品、自动属性映射、价格转换和一键入库的完整解决方案。
+**新增** 系统现已扩展为包含完整的数据导入、导出和管理功能，支持管理员对订单数据进行Excel格式的导出，便于采购和财务结算。同时集成了阿里巴巴1688供应商平台的深度集成，提供从1688批量获取商品、自动属性映射、价格转换和一键入库的完整解决方案。
 
 系统采用现代化的技术栈，基于Next.js构建，使用Prisma ORM进行数据库操作，支持多语言国际化和云端存储集成。最新版本增强了调试诊断能力和生产环境稳定性，新增了供应商数据转换功能，支持多种供应商格式的自动转换，并增加了Excel导出功能和1688集成系统以满足业务需求。
 
@@ -81,6 +87,7 @@ Excel导入系统是一个完整的商品数据批量导入解决方案，专为
 graph TB
 subgraph "前端层"
 UI[管理界面]
+StorefrontUI[前台订单页面]
 Upload[Excel上传组件]
 Export[Excel导出组件]
 OrderDetail[订单详情页面]
@@ -90,7 +97,8 @@ end
 subgraph "API层"
 UploadAPI[上传API]
 ImportAPI[导入API]
-ExportAPI[导出API]
+AdminExportAPI[管理员导出API]
+CustomerExportAPI[客户导出API]
 Ali1688API[1688导入API]
 Ali1688SyncAPI[1688同步API]
 DebugLog[调试日志系统]
@@ -102,6 +110,7 @@ Validator[数据验证器]
 Translator[AI翻译器]
 SKUExpander[SKU展开器]
 OrderExporter[订单导出器]
+OrderDetailExporter[订单明细导出器]
 DebugParser[诊断解析器]
 SupplierConverterEngine[转换引擎]
 Ali1688Importer[1688导入器]
@@ -114,6 +123,7 @@ DebugImage[图像诊断]
 SupplierDataProcessor[供应商数据处理]
 OrderDataProcessor[订单数据处理]
 Ali1688Processor[1688数据处理]
+OrderDetailProcessor[订单明细处理]
 end
 subgraph "数据访问层"
 Prisma[Prisma ORM]
@@ -132,13 +142,12 @@ ImageSearch[以图搜商品]
 ImageUpload[图片上传]
 end
 UI --> Upload
-UI --> Export
-UI --> OrderDetail
-UI --> Ali1688Dialog
-UI --> Ali1688Sync
+UI --> AdminExportAPI
+StorefrontUI --> CustomerExportAPI
 Upload --> UploadAPI
-Export --> ExportAPI
-OrderDetail --> ExportAPI
+AdminExportAPI --> OrderExporter
+CustomerExportAPI --> OrderDetailExporter
+OrderDetailExporter --> OrderDetailProcessor
 Ali1688Dialog --> Ali1688API
 Ali1688Sync --> Ali1688SyncAPI
 UploadAPI --> DebugLog
@@ -154,8 +163,8 @@ SupplierDataProcessor --> DebugImage
 SupplierDataProcessor --> TaskStore
 TaskStore --> ImportAPI
 ImportAPI --> Prisma
-ExportAPI --> OrderExporter
 OrderExporter --> OrderDataProcessor
+OrderDetailExporter --> OrderDataProcessor
 OrderDataProcessor --> Prisma
 Ali1688SyncAPI --> Ali1688Syncer
 Ali1688Syncer --> Prisma
@@ -171,6 +180,9 @@ Ali1688API --> Database
 - [parser.ts:64-112](file://src/lib/excel/parser.ts#L64-L112)
 - [convert-xindeyi-excel.ts:280-478](file://scripts/convert-xindeyi-excel.ts#L280-L478)
 - [export-route.ts:6-146](file://src/app/api/admin/orders/[id]/export/route.ts#L6-L146)
+- [export-order-route.ts:1-47](file://src/app/api/admin/orders/[id]/export-order/route.ts#L1-L47)
+- [auth-export-route.ts:1-56](file://src/app/api/auth/orders/[id]/export/route.ts#L1-L56)
+- [order-detail-export.ts:73-230](file://src/lib/excel/order-detail-export.ts#L73-L230)
 - [ali1688-import-dialog.tsx:1-544](file://src/components/admin/ali1688-import-dialog.tsx#L1-L544)
 - [ali1688-sync-dialog.tsx:1-227](file://src/components/admin/ali1688-sync-dialog.tsx#L1-L227)
 
@@ -204,9 +216,15 @@ Ali1688API --> Database
 **新增**：专门处理不同供应商格式的Excel文件转换，支持新德艺等供应商的报价表转换为系统导入模板。
 
 ### 10. Excel导出系统
-**新增**：提供管理员订单Excel导出功能，支持采购清单的生成和下载，包含数据过滤、格式化和安全控制。
+**新增**：提供管理员和客户两个权限级别的订单Excel导出功能，支持采购清单和订单明细的生成和下载，包含数据过滤、格式化和安全控制。
 
-### 11. 1688集成系统
+### 11. Excel导出库
+**新增**：专门的订单导出处理库，支持图片嵌入、多语言标题、格式化数字和居中对齐等高级Excel功能。
+
+### 12. 权限控制系统
+**新增**：区分管理员和客户权限，确保导出功能的安全访问控制。
+
+### 13. 1688集成系统
 **新增**：提供完整的阿里巴巴1688供应商平台集成，包括商品导入、价格同步、属性映射和数据管理功能。
 
 **章节来源**
@@ -215,6 +233,9 @@ Ali1688API --> Database
 - [import.ts:245-395](file://src/lib/actions/import.ts#L245-L395)
 - [convert-xindeyi-excel.ts:1-561](file://scripts/convert-xindeyi-excel.ts#L1-L561)
 - [export-route.ts:6-146](file://src/app/api/admin/orders/[id]/export/route.ts#L6-L146)
+- [export-order-route.ts:1-47](file://src/app/api/admin/orders/[id]/export-order/route.ts#L1-L47)
+- [auth-export-route.ts:1-56](file://src/app/api/auth/orders/[id]/export/route.ts#L1-L56)
+- [order-detail-export.ts:73-230](file://src/lib/excel/order-detail-export.ts#L73-L230)
 - [ali1688-import-dialog.tsx:1-544](file://src/components/admin/ali1688-import-dialog.tsx#L1-L544)
 - [ali1688-sync-dialog.tsx:1-227](file://src/components/admin/ali1688-sync-dialog.tsx#L1-L227)
 
@@ -226,43 +247,31 @@ Ali1688API --> Database
 sequenceDiagram
 participant Client as 客户端
 participant API as API接口
-participant Debug as 调试系统
-participant Parser as 解析器
+participant Auth as 权限验证
 participant Exporter as 导出器
-participant SupplierConverter as 供应商转换器
-participant Ali1688Importer as 1688导入器
-participant Ali1688Syncer as 1688同步器
-participant Validator as 验证器
-participant Translator as 翻译器
+participant DetailExporter as 明细导出器
+participant Parser as 解析器
+participant Debug as 调试系统
 participant DB as 数据库
 Client->>API : 上传Excel文件
 API->>Debug : 记录上传日志
 API->>Parser : 解析Excel内容
 Parser->>Debug : 记录解析诊断
-Parser->>SupplierConverter : 转换供应商数据
-SupplierConverter->>SupplierConverter : 处理供应商特定格式
-SupplierConverter->>Validator : 验证转换后数据
-Validator->>Translator : 翻译文本内容
-Translator->>DB : 存储商品数据
-Client->>API : 导出订单Excel
-API->>Debug : 记录导出日志
+Parser->>DB : 存储商品数据
+Client->>API : 管理员导出采购清单
+API->>Auth : 验证管理员权限
 API->>Exporter : 处理订单数据
 Exporter->>DB : 查询订单详情
 DB-->>Exporter : 返回订单数据
 Exporter->>Exporter : 过滤和格式化数据
 Exporter->>Client : 返回Excel文件
-Client->>API : 1688商品导入
-API->>Debug : 记录导入日志
-API->>Ali1688Importer : 处理1688数据
-Ali1688Importer->>DB : 存储商品数据
-DB-->>API : 返回存储结果
-API-->>Client : 返回导入状态
-Client->>API : 1688商品同步
-API->>Debug : 记录同步日志
-API->>Ali1688Syncer : 同步商品数据
-Ali1688Syncer->>DB : 更新商品状态
-DB-->>API : 返回同步结果
-API-->>Client : 返回同步状态
+Client->>API : 客户导出订单明细
+API->>Auth : 验证客户权限
+API->>DetailExporter : 处理订单数据
+DetailExporter->>DB : 查询订单详情
+DB-->>DetailExporter : 返回订单数据
+DetailExporter->>DetailExporter : 过滤和格式化数据
+DetailExporter->>Client : 返回Excel文件
 ```
 
 **图表来源**
@@ -271,8 +280,9 @@ API-->>Client : 返回同步状态
 - [parser.ts:64-112](file://src/lib/excel/parser.ts#L64-L112)
 - [convert-xindeyi-excel.ts:280-478](file://scripts/convert-xindeyi-excel.ts#L280-L478)
 - [export-route.ts:6-146](file://src/app/api/admin/orders/[id]/export/route.ts#L6-L146)
-- [ali1688-import-dialog.tsx:100-175](file://src/components/admin/ali1688-import-dialog.tsx#L100-L175)
-- [ali1688-sync-dialog.tsx:48-78](file://src/components/admin/ali1688-sync-dialog.tsx#L48-L78)
+- [export-order-route.ts:1-47](file://src/app/api/admin/orders/[id]/export-order/route.ts#L1-L47)
+- [auth-export-route.ts:1-56](file://src/app/api/auth/orders/[id]/export/route.ts#L1-L56)
+- [order-detail-export.ts:73-230](file://src/lib/excel/order-detail-export.ts#L73-L230)
 
 ## 详细组件分析
 
@@ -508,15 +518,15 @@ ALI1688_PRODUCT ||--o{ ALI1688_SKU : contains
 
 ## Excel导出功能
 
-**新增** 系统现在包含完整的Excel导出功能，专门为管理员提供订单数据的Excel格式导出：
+**新增** 系统现在包含完整的Excel导出功能，提供管理员和客户两个权限级别的订单数据导出：
 
-### 导出API实现
+### 管理员导出功能
 
-导出API实现了完整的订单数据导出流程：
+管理员导出功能提供采购清单的生成和下载：
 
 ```mermaid
 flowchart TD
-Start([开始导出]) --> Auth[验证管理员权限]
+Start([开始管理员导出]) --> Auth[验证管理员权限]
 Auth --> CheckOrder{检查订单ID}
 CheckOrder --> |无效| ReturnError[返回权限错误]
 CheckOrder --> |有效| GetOrder[获取订单详情]
@@ -537,14 +547,43 @@ GenerateBuffer --> End
 **图表来源**
 - [export-route.ts:6-146](file://src/app/api/admin/orders/[id]/export/route.ts#L6-L146)
 
+### 客户导出功能
+
+客户导出功能提供订单明细的生成和下载：
+
+```mermaid
+flowchart TD
+Start([开始客户导出]) --> Auth[验证客户权限]
+Auth --> CheckOrder{检查订单ID}
+CheckOrder --> |无效| ReturnError[返回权限错误]
+CheckOrder --> |有效| GetOrder[获取订单详情]
+GetOrder --> ValidateOrder{验证订单存在}
+ValidateOrder --> |不存在| ReturnNotFound[返回404错误]
+ValidateOrder --> |存在| FilterItems[过滤商品数据]
+FilterItems --> CreateWorkbook[创建Excel工作簿]
+CreateWorkbook --> SetStyles[设置样式和格式]
+SetStyles --> AddData[添加订单数据]
+AddData --> AddTotals[添加总计行]
+AddTotals --> GenerateBuffer[生成Excel缓冲区]
+GenerateBuffer --> ReturnResponse[返回Excel文件]
+ReturnError --> End([结束])
+ReturnNotFound --> End
+GenerateBuffer --> End
+```
+
+**图表来源**
+- [auth-export-route.ts:1-56](file://src/app/api/auth/orders/[id]/export/route.ts#L1-L56)
+
 ### 导出功能特性
 
 1. **权限控制**
-   - 仅管理员用户可访问导出功能
+   - 管理员导出：仅管理员用户可访问导出功能
+   - 客户导出：仅订单拥有者可访问导出功能
    - 实时权限验证确保数据安全
 
 2. **数据过滤**
-   - 自动过滤已移除的客户商品（CUSTOMER_REMOVED状态）
+   - 管理员导出：过滤CUSTOMER_REMOVED状态的商品
+   - 客户导出：过滤CUSTOMER_REMOVED和OUT_OF_STOCK状态的商品
    - 仅导出有效的订单商品数据
 
 3. **格式化处理**
@@ -557,9 +596,9 @@ GenerateBuffer --> End
    - 自动设置正确的HTTP响应头
    - 流式传输避免内存溢出
 
-### 导出数据结构
+### 管理员导出数据结构
 
-导出的Excel文件包含以下列：
+管理员导出的Excel文件包含以下列：
 
 | 列名 | 字段 | 格式 |
 |------|------|------|
@@ -573,37 +612,286 @@ GenerateBuffer --> End
 | 成本单价(¥) | 成本单价（人民币） | 金额格式 |
 | 成本小计(¥) | 成本小计（人民币） | 金额格式 |
 
+### 客户导出数据结构
+
+客户导出的Excel文件包含以下列：
+
+| 列名 | 字段 | 格式 |
+|------|------|------|
+| 商品ID | 商品产品ID | 文本 |
+| SKU ID | 商品SKU ID | 文本 |
+| 图片 | 商品图片 | 图片占位符 |
+| 数量 | 商品数量 | 数字居中 |
+| 客户单价(SAR) | 客户单价（沙特里亚尔） | 数字格式 |
+| 合计(SAR) | 小计（沙特里亚尔） | 数字格式 |
+
 ### 前端集成
 
 订单详情页面集成了Excel导出按钮：
 
 ```mermaid
 sequenceDiagram
-participant Admin as 管理员
+participant User as 用户
 participant UI as 订单详情页面
 participant ExportBtn as 导出按钮
-participant API as 导出API
+participant AdminAPI as 管理员导出API
+participant CustomerAPI as 客户导出API
 participant Browser as 浏览器
-Admin->>UI : 打开订单详情
+User->>UI : 打开订单详情
 UI->>ExportBtn : 显示导出按钮
 ExportBtn->>ExportBtn : 验证权限
-ExportBtn->>API : 发送导出请求
-API->>API : 验证管理员权限
-API->>API : 获取订单数据
-API->>API : 过滤商品数据
-API->>API : 生成Excel文件
-API->>Browser : 返回Excel文件
+alt 管理员
+ExportBtn->>AdminAPI : 发送管理员导出请求
+AdminAPI->>AdminAPI : 验证管理员权限
+AdminAPI->>AdminAPI : 获取订单数据
+AdminAPI->>AdminAPI : 过滤商品数据
+AdminAPI->>AdminAPI : 生成Excel文件
+AdminAPI->>Browser : 返回Excel文件
+else 客户
+ExportBtn->>CustomerAPI : 发送客户导出请求
+CustomerAPI->>CustomerAPI : 验证客户权限
+CustomerAPI->>CustomerAPI : 获取订单数据
+CustomerAPI->>CustomerAPI : 过滤商品数据
+CustomerAPI->>CustomerAPI : 生成Excel文件
+CustomerAPI->>Browser : 返回Excel文件
+end
 Browser->>Browser : 触发文件下载
-Browser-->>Admin : 下载完成
+Browser-->>User : 下载完成
 ```
 
 **图表来源**
-- [admin-orders-page.tsx:352-363](file://src/app/admin/orders/[id]/page.tsx#L352-L363)
+- [admin-orders-page.tsx:352-374](file://src/app/admin/orders/[id]/page.tsx#L352-L374)
+- [storefront-orders-page.tsx:470-484](file://src/app/[locale]/storefront/orders/[id]/page.tsx#L470-L484)
 - [export-route.ts:6-146](file://src/app/api/admin/orders/[id]/export/route.ts#L6-L146)
+- [auth-export-route.ts:1-56](file://src/app/api/auth/orders/[id]/export/route.ts#L1-L56)
 
 **章节来源**
 - [export-route.ts:6-146](file://src/app/api/admin/orders/[id]/export/route.ts#L6-L146)
-- [admin-orders-page.tsx:352-363](file://src/app/admin/orders/[id]/page.tsx#L352-L363)
+- [export-order-route.ts:1-47](file://src/app/api/admin/orders/[id]/export-order/route.ts#L1-L47)
+- [auth-export-route.ts:1-56](file://src/app/api/auth/orders/[id]/export/route.ts#L1-L56)
+- [admin-orders-page.tsx:352-374](file://src/app/admin/orders/[id]/page.tsx#L352-L374)
+- [storefront-orders-page.tsx:470-484](file://src/app/[locale]/storefront/orders/[id]/page.tsx#L470-L484)
+
+## Excel导出库
+
+**新增** 系统现在包含专门的Excel导出库，提供高级的Excel处理功能：
+
+### 导出库架构
+
+```mermaid
+flowchart TD
+Start([开始导出]) --> LoadOrder[加载订单数据]
+LoadOrder --> FilterItems[过滤订单项]
+FilterItems --> CreateWorkbook[创建Excel工作簿]
+CreateWorkbook --> SetStyles[设置样式和格式]
+SetStyles --> DownloadImages[下载图片]
+DownloadImages --> ProcessItems[处理订单项]
+ProcessItems --> CalculateTotals[计算总计]
+CalculateTotals --> GenerateBuffer[生成Excel缓冲区]
+GenerateBuffer --> ReturnBuffer[返回缓冲区]
+```
+
+**图表来源**
+- [order-detail-export.ts:73-230](file://src/lib/excel/order-detail-export.ts#L73-L230)
+
+### 核心功能特性
+
+1. **图片处理**
+   - 支持本地相对路径和外部URL图片
+   - 异步下载和缓存图片数据
+   - 自动推断图片格式（JPEG/PNG）
+   - 嵌入图片到Excel工作表
+
+2. **数据处理**
+   - 过滤CUSTOMER_REMOVED和OUT_OF_STOCK状态
+   - 优先使用settlementQty和settlementPriceSar
+   - 自动计算价格和数量总计
+   - 支持汇率转换
+
+3. **格式化功能**
+   - 多语言标题支持（中文、英文、阿拉伯文）
+   - 居中对齐和表头样式设置
+   - 数字格式化（#,##0.00）
+   - 行高动态调整以适应图片
+
+4. **错误处理**
+   - 图片下载失败时的优雅降级
+   - 空值和异常数据的处理
+   - 详细的错误日志记录
+
+### 导出流程
+
+```mermaid
+sequenceDiagram
+participant Order as 订单数据
+participant Exporter as 导出器
+participant ImageCache as 图片缓存
+participant Workbook as 工作簿
+Order->>Exporter : 提供订单详情
+Exporter->>Exporter : 过滤订单项
+Exporter->>ImageCache : 下载图片
+ImageCache->>ImageCache : 缓存图片数据
+Exporter->>Workbook : 创建工作簿
+Exporter->>Workbook : 设置样式
+Exporter->>Workbook : 添加数据行
+Exporter->>Workbook : 计算总计
+Workbook->>Exporter : 生成缓冲区
+Exporter-->>Order : 返回Excel数据
+```
+
+**图表来源**
+- [order-detail-export.ts:73-230](file://src/lib/excel/order-detail-export.ts#L73-L230)
+
+**章节来源**
+- [order-detail-export.ts:1-258](file://src/lib/excel/order-detail-export.ts#L1-L258)
+
+## 权限控制系统
+
+**新增** 系统现在包含完善的权限控制系统，区分管理员和客户权限：
+
+### 权限验证机制
+
+```mermaid
+flowchart TD
+Start([开始权限验证]) --> CheckUser{检查用户身份}
+CheckUser --> |未登录| ReturnUnauthorized[返回401未授权]
+CheckUser --> |已登录| CheckRole{检查角色权限}
+CheckRole --> |ADMIN| AdminAccess[管理员访问]
+CheckRole --> |普通用户| CheckOwnership{检查订单归属}
+CheckOwnership --> |订单拥有者| CustomerAccess[客户访问]
+CheckOwnership --> |非订单拥有者| ReturnForbidden[返回403禁止]
+ReturnUnauthorized --> End([结束])
+ReturnForbidden --> End
+AdminAccess --> End
+CustomerAccess --> End
+```
+
+**图表来源**
+- [export-route.ts:11-18](file://src/app/api/admin/orders/[id]/export/route.ts#L11-L18)
+- [auth-export-route.ts:10-17](file://src/app/api/auth/orders/[id]/export/route.ts#L10-L17)
+
+### 权限规则
+
+1. **管理员权限**
+   - 角色必须为ADMIN
+   - 可访问所有订单的导出功能
+   - 无需订单归属验证
+
+2. **客户权限**
+   - 必须已登录
+   - 必须是订单的拥有者
+   - 仅可访问自己的订单
+
+3. **错误处理**
+   - 权限不足时返回403状态码
+   - 未登录时返回401状态码
+   - 订单不存在时返回404状态码
+
+**章节来源**
+- [export-route.ts:11-18](file://src/app/api/admin/orders/[id]/export/route.ts#L11-L18)
+- [export-order-route.ts:10-17](file://src/app/api/admin/orders/[id]/export-order/route.ts#L10-L17)
+- [auth-export-route.ts:10-17](file://src/app/api/auth/orders/[id]/export/route.ts#L10-L17)
+
+## 前端集成
+
+**新增** 系统现在在前端订单详情页面集成了导出按钮：
+
+### 管理员前端集成
+
+管理员在订单详情页面可以看到两个导出按钮：
+
+```mermaid
+sequenceDiagram
+participant Admin as 管理员
+participant AdminPage as 管理员订单页面
+participant ExportBtn1 as 导出采购清单按钮
+participant ExportBtn2 as 导出Excel按钮
+Admin->>AdminPage : 打开订单详情
+AdminPage->>ExportBtn1 : 显示导出采购清单按钮
+AdminPage->>ExportBtn2 : 显示导出Excel按钮
+ExportBtn1->>ExportBtn1 : 验证管理员权限
+ExportBtn1->>AdminPage : 调用/api/admin/orders/{id}/export
+ExportBtn2->>ExportBtn2 : 验证管理员权限
+ExportBtn2->>AdminPage : 调用/api/admin/orders/{id}/export-order
+```
+
+**图表来源**
+- [admin-orders-page.tsx:352-374](file://src/app/admin/orders/[id]/page.tsx#L352-L374)
+
+### 客户前端集成
+
+客户在订单详情页面可以看到导出按钮：
+
+```mermaid
+sequenceDiagram
+participant Customer as 客户
+participant StorefrontPage as 前台订单页面
+participant ExportBtn as 导出Excel按钮
+Customer->>StorefrontPage : 打开订单详情
+StorefrontPage->>ExportBtn : 显示导出Excel按钮
+ExportBtn->>ExportBtn : 验证客户权限
+ExportBtn->>StorefrontPage : 调用/api/auth/orders/{id}/export
+```
+
+**图表来源**
+- [storefront-orders-page.tsx:470-484](file://src/app/[locale]/storefront/orders/[id]/page.tsx#L470-L484)
+
+### 导出按钮功能
+
+1. **管理员导出按钮**
+   - 导出采购清单（/api/admin/orders/[id]/export）
+   - 生成采购清单Excel文件
+   - 包含成本价和供应商信息
+
+2. **客户导出按钮**
+   - 导出订单明细（/api/auth/orders/[id]/export）
+   - 生成订单明细Excel文件
+   - 包含客户单价和汇率信息
+
+3. **国际化支持**
+   - 按钮文本支持多语言
+   - 中文：导出Excel
+   - 英文：Export Excel
+   - 阿拉伯文：تصدير Excel
+
+**章节来源**
+- [admin-orders-page.tsx:352-374](file://src/app/admin/orders/[id]/page.tsx#L352-L374)
+- [storefront-orders-page.tsx:470-484](file://src/app/[locale]/storefront/orders/[id]/page.tsx#L470-L484)
+
+## 国际化支持
+
+**新增** 系统现在支持多语言国际化，包括导出功能的标题和按钮文本：
+
+### 多语言配置
+
+系统支持三种语言的国际化配置：
+
+| 语言 | 键名 | 值 |
+|------|------|-----|
+| 中文 | exportExcel | 导出Excel |
+| 英文 | exportExcel | Export Excel |
+| 阿拉伯文 | exportExcel | تصدير Excel |
+
+### 国际化实现
+
+1. **消息文件**
+   - 中文：src/i18n/messages/zh.json
+   - 英文：src/i18n/messages/en.json
+   - 阿拉伯文：src/i18n/messages/ar.json
+
+2. **导出按钮文本**
+   - 使用t函数获取国际化文本
+   - 自动根据用户语言切换显示
+
+3. **Excel标题**
+   - 管理员导出：采购清单
+   - 客户导出：订单明细
+   - 支持多语言标题
+
+**章节来源**
+- [zh.json](file://src/i18n/messages/zh.json#L201)
+- [en.json](file://src/i18n/messages/en.json#L201)
+- [ar.json](file://src/i18n/messages/ar.json#L201)
 
 ## 供应商数据转换系统
 
@@ -846,6 +1134,7 @@ SyncDialog-->>Admin : 同步完成
    - **新增**：导出过程的详细日志记录
    - **新增**：订单数据过滤和格式化过程
    - **新增**：Excel文件生成和下载统计
+   - **新增**：图片下载和嵌入过程
 
 6. **1688集成诊断日志**
    - **新增**：1688 API调用日志
@@ -1060,6 +1349,8 @@ Ali1688API --> URLSearchParams
 12. **1688 API优化**：**新增**：分页处理大量商品数据，避免单次请求过大
 13. **图片处理优化**：**新增**：异步下载和处理1688商品图片，避免阻塞导入流程
 14. **价格转换优化**：**新增**：批量处理价格转换，提升导入效率
+15. **权限验证优化**：**新增**：快速权限检查，避免不必要的数据库查询
+16. **ExcelJS优化**：**新增**：使用工作簿缓存，减少重复创建开销
 
 ## 故障排除指南
 
@@ -1086,6 +1377,8 @@ Ali1688API --> URLSearchParams
    - **新增**：确认订单ID有效性
    - **新增**：验证订单数据完整性
    - **新增**：检查ExcelJS库版本兼容性
+   - **新增**：验证图片下载和嵌入过程
+   - **新增**：检查汇率转换计算
 
 5. **1688集成失败**
    - **新增**：检查1688配置环境变量是否正确设置
@@ -1122,6 +1415,13 @@ Ali1688API --> URLSearchParams
     - **新增**：确认导出API端点可用性
     - **新增**：验证客户端权限状态
     - **新增**：检查ExcelJS库加载状态
+    - **新增**：验证国际化文本显示
+
+11. **权限验证失败**
+    - **新增**：检查用户会话状态
+    - **新增**：验证角色权限配置
+    - **新增**：确认订单归属验证逻辑
+    - **新增**：检查API路由权限配置
 
 **章节来源**
 - [import.ts:368-395](file://src/lib/actions/import.ts#L368-L395)
@@ -1129,6 +1429,8 @@ Ali1688API --> URLSearchParams
 - [parser.ts:64-112](file://src/lib/excel/parser.ts#L64-L112)
 - [convert-xindeyi-excel.ts:280-478](file://scripts/convert-xindeyi-excel.ts#L280-L478)
 - [export-route.ts:138-144](file://src/app/api/admin/orders/[id]/export/route.ts#L138-L144)
+- [export-order-route.ts:40-46](file://src/app/api/admin/orders/[id]/export-order/route.ts#L40-L46)
+- [auth-export-route.ts:48-55](file://src/app/api/auth/orders/[id]/export/route.ts#L48-L55)
 - [config.ts:25-29](file://docs/1688 demo/integration-1688/config.ts#L25-L29)
 - [ali1688-import-dialog.tsx:133-137](file://src/components/admin/ali1688-import-dialog.tsx#L133-L137)
 
@@ -1147,11 +1449,14 @@ Excel导入系统是一个功能完整、架构清晰的商品数据批量导入
 7. **优化的部署配置**：确保系统在生产环境中的稳定运行
 8. **供应商数据转换**：**新增**：支持多种供应商格式的自动转换
 9. **ExcelJS迁移**：**新增**：提升解析性能和兼容性
-10. **Excel导出功能**：**新增**：提供管理员订单数据导出能力
-11. **1688深度集成**：**新增**：提供完整的阿里巴巴1688供应商平台集成
-12. **批量商品导入**：**新增**：支持从1688批量获取商品并一键入库
-13. **实时价格同步**：**新增**：支持1688商品价格和库存状态实时同步
-14. **智能属性映射**：**新增**：自动识别和映射1688商品属性到系统字段
+10. **Excel导出功能**：**新增**：提供管理员和客户两个权限级别的订单数据导出能力
+11. **Excel导出库**：**新增**：专门的订单导出处理库，支持图片嵌入和多语言标题
+12. **权限控制系统**：**新增**：区分管理员和客户权限，确保导出功能的安全访问
+13. **国际化支持**：**新增**：多语言导出按钮文本和Excel标题
+14. **1688深度集成**：**新增**：提供完整的阿里巴巴1688供应商平台集成
+15. **批量商品导入**：**新增**：支持从1688批量获取商品并一键入库
+16. **实时价格同步**：**新增**：支持1688商品价格和库存状态实时同步
+17. **智能属性映射**：**新增**：自动识别和映射1688商品属性到系统字段
 
 ### 技术创新
 
@@ -1161,11 +1466,14 @@ Excel导入系统是一个功能完整、架构清晰的商品数据批量导入
 4. **生产环境优化**：通过Docker多阶段构建和Next.js配置优化提升性能
 5. **可观测性增强**：支持生产环境的问题快速定位和解决
 6. **原生模块支持**：通过serverExternalPackages配置优化原生模块加载
-7. **Excel导出API**：**新增**：提供完整的订单数据导出功能
-8. **前端导出集成**：**新增**：在订单详情页面集成Excel导出按钮
-9. **1688 API集成**：**新增**：完整的阿里巴巴1688供应商平台API集成
-10. **批量导入对话框**：**新增**：提供直观的1688商品导入用户界面
-11. **实时同步功能**：**新增**：支持1688商品数据的实时同步和更新
-12. **智能错误处理**：**新增**：提供详细的导入和同步错误报告
+7. **Excel导出API**：**新增**：提供完整的管理员和客户订单数据导出功能
+8. **Excel导出库**：**新增**：专门的订单导出处理库，支持高级Excel功能
+9. **权限控制优化**：**新增**：快速权限验证，避免不必要的数据库查询
+10. **前端导出集成**：**新增**：在订单详情页面集成Excel导出按钮
+11. **国际化导出支持**：**新增**：多语言导出按钮文本和Excel标题
+12. **1688 API集成**：**新增**：完整的阿里巴巴1688供应商平台API集成
+13. **批量导入对话框**：**新增**：提供直观的1688商品导入用户界面
+14. **实时同步功能**：**新增**：支持1688商品数据的实时同步和更新
+15. **智能错误处理**：**新增**：提供详细的导入和同步错误报告
 
-系统采用现代化的技术栈和最佳实践，具有良好的可扩展性和维护性，能够满足珠宝电商行业的复杂需求，并为未来的功能扩展奠定了坚实的基础。1688集成系统的加入，使得系统不仅能够处理内部Excel导入，还能直接对接阿里巴巴1688供应链，为企业提供从供应商到销售的全链路数字化解决方案。
+系统采用现代化的技术栈和最佳实践，具有良好的可扩展性和维护性，能够满足珠宝电商行业的复杂需求，并为未来的功能扩展奠定了坚实的基础。1688集成系统的加入，使得系统不仅能够处理内部Excel导入，还能直接对接阿里巴巴1688供应链，为企业提供从供应商到销售的全链路数字化解决方案。新增的Excel导出功能进一步完善了系统的数据管理能力，为采购、财务和运营决策提供了强有力的支持。
