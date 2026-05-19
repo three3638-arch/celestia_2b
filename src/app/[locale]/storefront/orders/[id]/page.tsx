@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Trash2,
   Minus,
+  Download,
 } from "lucide-react";
 import { getOrderDetail, confirmOrder, cancelOrder, customerUpdateOrder } from "@/lib/actions/order";
 import { getCustomerSettlementSummary, type CustomerSettlementSummary } from "@/lib/actions/settlement";
@@ -470,6 +471,17 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           <Badge variant={order.status === "CANCELLED" ? "destructive" : "default"}>
             {order.statusLabel}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              window.open(`/api/auth/orders/${order.id}/export`, '_blank')
+            }}
+            className="ms-auto border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Download className="h-4 w-4 me-1" />
+            {t("exportExcel")}
+          </Button>
         </div>
       </div>
 

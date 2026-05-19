@@ -361,6 +361,17 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   <Download className="h-4 w-4 mr-1" />
                   导出采购清单
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    window.open(`/api/admin/orders/${order.id}/export-order`, '_blank')
+                  }}
+                  className="border-border bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  导出Excel
+                </Button>
                 {canQuote && (
                   <Link href={`/admin/orders/${orderId}/quote`}>
                     <Button

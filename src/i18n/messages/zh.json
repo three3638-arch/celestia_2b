@@ -197,7 +197,8 @@
     "deleteOrder": "删除订单",
     "deleteConfirm": "确定要删除此订单吗？此操作不可恢复。",
     "deleteSuccess": "订单已删除",
-    "deleteFailed": "删除失败"
+    "deleteFailed": "删除失败",
+    "exportExcel": "导出Excel"
   },
   "settlement": {
     "title": "结算详情",

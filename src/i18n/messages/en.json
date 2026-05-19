@@ -197,7 +197,8 @@
     "deleteOrder": "Delete Order",
     "deleteConfirm": "Are you sure you want to delete this order? This action cannot be undone.",
     "deleteSuccess": "Order deleted",
-    "deleteFailed": "Delete failed"
+    "deleteFailed": "Delete failed",
+    "exportExcel": "Export Excel"
   },
   "settlement": {
     "title": "Settlement Details",

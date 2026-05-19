@@ -197,7 +197,8 @@
     "deleteOrder": "حذف الطلب",
     "deleteConfirm": "هل أنت متأكد من حذف هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.",
     "deleteSuccess": "تم حذف الطلب",
-    "deleteFailed": "فشل الحذف"
+    "deleteFailed": "فشل الحذف",
+    "exportExcel": "تصدير Excel"
   },
   "settlement": {
     "title": "تفاصيل التسوية",
