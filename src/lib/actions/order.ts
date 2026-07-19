@@ -454,6 +454,7 @@ export async function getOrderDetail(
               },
             },
           },
+          orderBy: { productNameSnapshot: 'asc' },
         },
         payments: {
           orderBy: { createdAt: 'desc' },
@@ -542,7 +543,7 @@ export async function customerUpdateOrder(
     
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { items: true },
+      include: { items: { orderBy: { productNameSnapshot: 'asc' } } },
     })
     
     if (!order) {
@@ -685,7 +686,7 @@ export async function confirmOrder(
     
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { items: true },
+      include: { items: { orderBy: { productNameSnapshot: 'asc' } } },
     })
     
     if (!order) {
@@ -975,6 +976,7 @@ export async function getAdminOrderDetail(
               },
             },
           },
+          orderBy: { productNameSnapshot: 'asc' },
         },
         payments: {
           orderBy: { createdAt: 'desc' },
@@ -1154,7 +1156,7 @@ export async function submitQuote(
     
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { items: true },
+      include: { items: { orderBy: { productNameSnapshot: 'asc' } } },
     })
     
     if (!order) {
@@ -1170,9 +1172,9 @@ export async function submitQuote(
     const exchangeRate = validated.exchangeRate
     const markupRatio = validated.markupRatio
     
-    // 构建 item 价格映射（包含 CNY 和可选的 SAR）
+    // 构建 item 价格映射（包含 CNY、可选的 SAR 和缺货标记）
     const itemPriceMap = new Map(
-      validated.items.map(item => [item.orderItemId, { unitPriceCny: item.unitPriceCny, unitPriceSar: item.unitPriceSar }])
+      validated.items.map(item => [item.orderItemId, { unitPriceCny: item.unitPriceCny, unitPriceSar: item.unitPriceSar, outOfStock: item.outOfStock }])
     )
     
     await prisma.$transaction(async (tx) => {
@@ -1187,25 +1189,37 @@ export async function submitQuote(
         const itemData = itemPriceMap.get(orderItem.id)
         
         if (itemData !== undefined) {
-          const unitPriceCny = itemData.unitPriceCny
-          // 如果有手动客户单价，使用手动值；否则自动计算
-          const unitPriceSar = itemData.unitPriceSar
-            ? new Decimal(itemData.unitPriceSar)
-            : new Decimal(calculateCustomerPrice(unitPriceCny, markupRatio, exchangeRate))
-          
-          // 累加总价
-          totalCny = totalCny.add(new Decimal(unitPriceCny).mul(orderItem.quantity))
-          totalSar = totalSar.add(unitPriceSar.mul(orderItem.quantity))
-          
-          // 更新 item
-          await tx.orderItem.update({
-            where: { id: orderItem.id },
-            data: {
-              unitPriceCny: new Decimal(unitPriceCny),
-              unitPriceSar: unitPriceSar,
-              itemStatus: 'QUOTED',
-            },
-          })
+          if (itemData.outOfStock) {
+            // 缺货商品：标记状态，价格归零，不计入总金额
+            await tx.orderItem.update({
+              where: { id: orderItem.id },
+              data: {
+                unitPriceCny: new Decimal(0),
+                unitPriceSar: new Decimal(0),
+                itemStatus: 'OUT_OF_STOCK',
+              },
+            })
+          } else {
+            const unitPriceCny = itemData.unitPriceCny
+            // 如果有手动客户单价，使用手动值；否则自动计算
+            const unitPriceSar = itemData.unitPriceSar
+              ? new Decimal(itemData.unitPriceSar)
+              : new Decimal(calculateCustomerPrice(unitPriceCny, markupRatio, exchangeRate))
+            
+            // 累加总价
+            totalCny = totalCny.add(new Decimal(unitPriceCny).mul(orderItem.quantity))
+            totalSar = totalSar.add(unitPriceSar.mul(orderItem.quantity))
+            
+            // 更新 item
+            await tx.orderItem.update({
+              where: { id: orderItem.id },
+              data: {
+                unitPriceCny: new Decimal(unitPriceCny),
+                unitPriceSar: unitPriceSar,
+                itemStatus: 'QUOTED',
+              },
+            })
+          }
         }
       }
       
@@ -1262,7 +1276,7 @@ export async function adjustOrderBeforePayment(
     
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { items: true },
+      include: { items: { orderBy: { productNameSnapshot: 'asc' } } },
     })
     
     if (!order) {

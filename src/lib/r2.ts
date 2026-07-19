@@ -110,13 +110,67 @@ export async function deleteFromR2(key: string): Promise<void> {
 }
 
 /**
+ * 从公开 URL 或本地路径解析 R2 object key
+ * 支持：/uploads/...、R2_PUBLIC_URL 前缀、完整 URL 中的 shop/products/ 或 b2b/products/
+ */
+export function extractR2KeyFromUrl(url: string): string | null {
+  if (!url?.trim()) return null
+
+  const trimmed = url.trim()
+
+  if (trimmed.startsWith('/uploads/')) {
+    return trimmed.replace(/^\/uploads\//, '')
+  }
+
+  const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '')
+  if (publicBase && trimmed.startsWith(publicBase)) {
+    return trimmed.slice(publicBase.length).replace(/^\//, '')
+  }
+
+  try {
+    const { pathname } = new URL(trimmed)
+    const key = pathname.replace(/^\//, '')
+    if (key.startsWith('shop/products/') || key.startsWith('b2b/products/')) {
+      return key
+    }
+  } catch {
+    // 非完整 URL，继续尝试正则
+  }
+
+  const embedded = trimmed.match(/((?:shop|b2b)\/products\/[^?#]+)/)
+  return embedded?.[1] ?? null
+}
+
+/** 按 URL 删除 R2 对象（无法解析 key 时静默跳过） */
+export async function deleteR2ObjectByUrl(url: string | null | undefined): Promise<void> {
+  if (!url) return
+  const key = extractR2KeyFromUrl(url)
+  if (key) {
+    await deleteFromR2(key)
+  }
+}
+
+/**
  * 生成文件 key（基于时间戳 + 随机字符串，避免冲突）
- * @param prefix 前缀，如 products
+ * @param prefix 前缀，如 b2b/products 或 shop/products
  * @param extension 扩展名，如 webp
- * @returns 文件 key，如 products/1711648000000-a3f2.webp
+ * @returns 文件 key，如 shop/products/1711648000000-a3f2.webp
  */
 export function generateFileKey(prefix: string, extension: string): string {
   const timestamp = Date.now()
   const random = Math.random().toString(36).substring(2, 6)
   return `${prefix}/${timestamp}-${random}.${extension}`
+}
+
+const B2B_IMAGE_PREFIX = 'b2b/products'
+const SHOP_IMAGE_PREFIX = 'shop/products'
+
+/** 2B 商品图片上传路径 */
+export function generateB2bImageKey(extension = 'webp'): string {
+  return generateFileKey(B2B_IMAGE_PREFIX, extension)
+}
+
+/** 2C 商品图片上传路径 */
+export function generateShopImageKey(extension = 'webp'): string {
+  return generateFileKey(SHOP_IMAGE_PREFIX, extension)
 }

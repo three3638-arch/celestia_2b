@@ -134,7 +134,7 @@ export default function QuotePage({ params }: QuotePageProps) {
           // 客户单价 SAR：仅按当前页汇率×加价自动计算（customSarPrice 置空）
           initialPrices[item.id] = {
             price: item.unitPriceCny || item.suggestedCostCny || "",
-            outOfStock: false,
+            outOfStock: item.itemStatus === 'OUT_OF_STOCK',
             customSarPrice: null,
           };
         });
@@ -296,13 +296,14 @@ export default function QuotePage({ params }: QuotePageProps) {
     // 验证
     const items = order?.items
       .filter((item) => item.itemStatus !== 'CUSTOMER_REMOVED')
-      .filter((item) => !itemPrices[item.id]?.outOfStock)
       .map((item) => ({
         orderItemId: item.id,
-        unitPriceCny: itemPrices[item.id]?.price,
-        ...(itemPrices[item.id]?.customSarPrice ? { unitPriceSar: itemPrices[item.id].customSarPrice } : {}),
+        unitPriceCny: itemPrices[item.id]?.outOfStock ? "0" : itemPrices[item.id]?.price,
+        outOfStock: itemPrices[item.id]?.outOfStock || false,
+        ...(itemPrices[item.id]?.customSarPrice && !itemPrices[item.id]?.outOfStock
+          ? { unitPriceSar: itemPrices[item.id].customSarPrice } : {}),
       }))
-      .filter((item) => item.unitPriceCny && parseFloat(item.unitPriceCny) > 0);
+      .filter((item) => item.outOfStock || (item.unitPriceCny && parseFloat(item.unitPriceCny) > 0));
 
     if (!items || items.length === 0) {
       setError("请至少填写一个商品的成本价");
@@ -522,7 +523,7 @@ export default function QuotePage({ params }: QuotePageProps) {
                   {[...order.items].sort((a, b) => {
                     if (a.itemStatus === 'CUSTOMER_REMOVED' && b.itemStatus !== 'CUSTOMER_REMOVED') return 1;
                     if (a.itemStatus !== 'CUSTOMER_REMOVED' && b.itemStatus === 'CUSTOMER_REMOVED') return -1;
-                    return 0;
+                    return (a.productNameSnapshot || '').localeCompare(b.productNameSnapshot || '');
                   }).map((item) => {
                     const itemData = itemPrices[item.id];
                     const costSubtotal = calculateCostSubtotal(item.id, item.quantity);

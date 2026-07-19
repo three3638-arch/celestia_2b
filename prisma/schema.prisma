@@ -76,7 +76,68 @@ enum PaymentMethod {
   OTHER            // 其他
 }
 
+// ============================================================
+// 2C Shop 枚举
+// ============================================================
 
+enum ShopUserRole {
+  SHOP_ADMIN
+  SHOP_EDITOR
+}
+
+enum ShopCategoryStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ShopProductStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+}
+
+enum ShopStockStatus {
+  IN_STOCK
+  OUT_OF_STOCK
+  PRE_ORDER
+}
+
+enum ShopInquiryStatus {
+  NEW
+  CONTACTED
+  CONVERTED
+  CLOSED
+}
+
+enum ShopCustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ShopOrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum ShopPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum ShopShipmentStatus {
+  PENDING
+  SHIPPED
+  IN_TRANSIT
+  DELIVERED
+  RETURNED
+}
 
 // ============================================================
 // 数据模型
@@ -346,4 +407,271 @@ model UserGroupAccess {
 
   @@unique([userId, groupId])
   @@map("user_group_access")
+}
+
+// ============================================================
+// 2C Shop 模型
+// ============================================================
+
+model ShopUser {
+  id           String       @id @default(cuid())
+  phone        String       @unique
+  passwordHash String       @map("password_hash")
+  name         String
+  role         ShopUserRole @default(SHOP_EDITOR)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@map("shop_users")
+}
+
+model ShopCategory {
+  id        String             @id @default(cuid())
+  slug      String             @unique
+  nameZh    String             @map("name_zh")
+  nameEn    String             @map("name_en")
+  nameAr    String             @map("name_ar")
+  sortOrder Int                @default(0) @map("sort_order")
+  status    ShopCategoryStatus @default(ACTIVE)
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  products ShopProduct[]
+
+  @@map("shop_categories")
+}
+
+model ShopProduct {
+  id            String            @id @default(cuid())
+  slug          String            @unique
+  titleZh       String            @map("title_zh")
+  titleEn       String            @map("title_en")
+  titleAr       String            @map("title_ar")
+  descriptionZh String?           @map("description_zh") @db.Text
+  descriptionEn String?           @map("description_en") @db.Text
+  descriptionAr String?           @map("description_ar") @db.Text
+  categoryId    String            @map("category_id")
+  status        ShopProductStatus @default(DRAFT)
+  sortOrder     Int               @default(0) @map("sort_order")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  category ShopCategory       @relation(fields: [categoryId], references: [id])
+  images   ShopProductImage[]
+  variants ShopProductVariant[]
+  inquiries ShopInquiry[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@map("shop_products")
+}
+
+model ShopProductImage {
+  id           String   @id @default(cuid())
+  productId    String   @map("product_id")
+  url          String
+  thumbnailUrl String?  @map("thumbnail_url")
+  isPrimary    Boolean  @default(false) @map("is_primary")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  product ShopProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("shop_product_images")
+}
+
+model ShopProductVariant {
+  id           String          @id @default(cuid())
+  productId    String          @map("product_id")
+  variantCode  String          @map("variant_code")
+  nameZh       String?         @map("name_zh")
+  nameEn       String?         @map("name_en")
+  nameAr       String?         @map("name_ar")
+  stockStatus  ShopStockStatus @default(IN_STOCK) @map("stock_status")
+  listPrice    Decimal         @map("list_price") @db.Decimal(10, 2)
+  salePrice    Decimal?        @map("sale_price") @db.Decimal(10, 2)
+  saleStartAt  DateTime?       @map("sale_start_at")
+  saleEndAt    DateTime?       @map("sale_end_at")
+  currency     String          @default("SAR")
+  sortOrder    Int             @default(0) @map("sort_order")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  product    ShopProduct     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  inquiries  ShopInquiry[]
+  cartItems  ShopCartItem[]
+  orderItems ShopOrderItem[]
+
+  @@unique([productId, variantCode])
+  @@index([productId])
+  @@map("shop_product_variants")
+}
+
+model ShopInquiry {
+  id                    String            @id @default(cuid())
+  productId             String            @map("product_id")
+  variantId             String?           @map("variant_id")
+  name                  String
+  phone                 String
+  email                 String?
+  message               String?           @db.Text
+  listPriceSnapshot     Decimal           @map("list_price_snapshot") @db.Decimal(10, 2)
+  currentPriceSnapshot  Decimal           @map("current_price_snapshot") @db.Decimal(10, 2)
+  status                ShopInquiryStatus @default(NEW)
+  adminNote             String?           @map("admin_note") @db.Text
+  convertedOrderId      String?           @map("converted_order_id")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+
+  product ShopProduct          @relation(fields: [productId], references: [id])
+  variant ShopProductVariant?  @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([productId])
+  @@index([status])
+  @@map("shop_inquiries")
+}
+
+// v2 预留表
+model ShopCustomer {
+  id           String             @id @default(cuid())
+  phone        String?            @unique
+  email        String?            @unique
+  passwordHash String?            @map("password_hash")
+  name         String?
+  status       ShopCustomerStatus @default(ACTIVE)
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  carts  ShopCart[]
+  orders ShopOrder[]
+
+  @@map("shop_customers")
+}
+
+model ShopCart {
+  id         String    @id @default(cuid())
+  customerId String?   @map("customer_id")
+  sessionId  String?   @map("session_id")
+  expiresAt  DateTime? @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  customer ShopCustomer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items    ShopCartItem[]
+
+  @@map("shop_carts")
+}
+
+model ShopCartItem {
+  id        String   @id @default(cuid())
+  cartId    String   @map("cart_id")
+  variantId String   @map("variant_id")
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  cart    ShopCart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant ShopProductVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([cartId, variantId])
+  @@map("shop_cart_items")
+}
+
+model ShopOrder {
+  id                  String          @id @default(cuid())
+  orderNo             String          @unique @map("order_no")
+  customerId          String          @map("customer_id")
+  status              ShopOrderStatus @default(PENDING_PAYMENT)
+  currency            String          @default("SAR")
+  subtotal            Decimal         @db.Decimal(12, 2)
+  discountTotal       Decimal         @default(0) @map("discount_total") @db.Decimal(12, 2)
+  shippingFee         Decimal         @default(0) @map("shipping_fee") @db.Decimal(12, 2)
+  total               Decimal         @db.Decimal(12, 2)
+  shippingAddressJson Json?           @map("shipping_address_json")
+  note                String?         @db.Text
+  paidAt              DateTime?       @map("paid_at")
+  shippedAt           DateTime?       @map("shipped_at")
+  completedAt         DateTime?       @map("completed_at")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  customer ShopCustomer    @relation(fields: [customerId], references: [id])
+  items    ShopOrderItem[]
+  payments ShopPayment[]
+  shipment ShopShipment?
+
+  @@index([customerId])
+  @@index([status])
+  @@map("shop_orders")
+}
+
+model ShopOrderItem {
+  id                   String   @id @default(cuid())
+  orderId              String   @map("order_id")
+  variantId            String   @map("variant_id")
+  productTitleSnapshot String   @map("product_title_snapshot")
+  variantDescSnapshot  String   @map("variant_desc_snapshot")
+  quantity             Int
+  listPriceSnapshot    Decimal  @map("list_price_snapshot") @db.Decimal(10, 2)
+  salePriceSnapshot    Decimal? @map("sale_price_snapshot") @db.Decimal(10, 2)
+  unitPriceSnapshot    Decimal  @map("unit_price_snapshot") @db.Decimal(10, 2)
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  order   ShopOrder          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ShopProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@map("shop_order_items")
+}
+
+model ShopPayment {
+  id          String            @id @default(cuid())
+  orderId     String            @map("order_id")
+  amount      Decimal           @db.Decimal(12, 2)
+  method      String
+  providerRef String?           @map("provider_ref")
+  status      ShopPaymentStatus @default(PENDING)
+  paidAt      DateTime?         @map("paid_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  order ShopOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("shop_payments")
+}
+
+model ShopShipment {
+  id          String             @id @default(cuid())
+  orderId     String             @unique @map("order_id")
+  trackingNo  String?            @map("tracking_no")
+  carrier     String?
+  status      ShopShipmentStatus @default(PENDING)
+  shippedAt   DateTime?          @map("shipped_at")
+  deliveredAt DateTime?          @map("delivered_at")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  order ShopOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("shop_shipments")
+}
+
+enum ContactSubmissionStatus {
+  NEW
+  READ
+  REPLIED
+}
+
+model ContactSubmission {
+  id        String                  @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  message   String
+  locale    String?
+  status    ContactSubmissionStatus @default(NEW)
+  createdAt DateTime                @default(now()) @map("created_at")
+  updatedAt DateTime                @updatedAt @map("updated_at")
+
+  @@map("contact_submissions")
 }

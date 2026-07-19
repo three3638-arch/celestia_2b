@@ -2,6 +2,41 @@
 
 本文档指导您在阿里云 ECS 服务器上部署 Celestia 电商平台。
 
+> **多站点架构**：同一 Next.js 应用通过 Host 分流服务三个子域。DNS/SSL 细节见 [multi-site-dns.md](./multi-site-dns.md)。
+
+| 子域 | 用途 | 示例入口 |
+|------|------|----------|
+| `celestia.com` | 官网（marketing） | `https://celestia.com/en` |
+| `shop.celestia.com` | 2C 商城 + 2C 后台 | `https://shop.celestia.com/en` |
+| `products.celestia.com` | 2B 后台 + 客户端 | `https://products.celestia.com/en/storefront` |
+
+**本地一键发布**（Windows）：`.\scripts\deploy-remote.ps1`（含 migrate 与三子域 HTTP 探测）
+
+### 首次部署检查清单（生产必查）
+
+在 `docker compose build` **之前**确认服务器 `.env.production` 已包含：
+
+| 变量 | 用途 |
+|------|------|
+| `SHOP_JWT_SECRET` | 2C 后台 JWT（须与 `JWT_SECRET` 不同） |
+| `SHOP_ADMIN_PHONE` / `SHOP_ADMIN_PASSWORD` | 2C 管理员种子 |
+| `NEXT_PUBLIC_MARKETING_URL` | 官网子域（**构建时**写入客户端） |
+| `NEXT_PUBLIC_SHOP_URL` | 商城子域（构建时） |
+| `NEXT_PUBLIC_B2B_URL` | 2B 子域（构建时） |
+| `COOKIE_DOMAIN` | 跨子域 Cookie（如 `.celestia.com`） |
+
+> `NEXT_PUBLIC_*` 在 Docker **build** 阶段注入，修改后须 `build --no-cache` 重新构建镜像。
+
+**推荐生产增强（限流 + CAPTCHA）：**
+
+| 变量 | 用途 |
+|------|------|
+| `REDIS_URL` | Upstash / 自建 Redis，跨副本共享限流 |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile（构建时注入） |
+| `TURNSTILE_SECRET_KEY` | Turnstile 服务端校验 |
+
+部署后验收：`bash scripts/smoke-production.sh .env.production` 或 `E2E_PRODUCTION=1 npm run test:e2e:production`。
+
 ---
 
 ## 1. 前置准备
@@ -209,8 +244,12 @@ JWT_EXPIRES_IN=7d
 ### 5.3 应用配置
 
 ```bash
-# 你的域名（必填，必须带 https://）
-NEXT_PUBLIC_BASE_URL=https://your-domain.com
+# 官网域名（必填，必须带 https://）
+NEXT_PUBLIC_BASE_URL=https://celestia.com
+NEXT_PUBLIC_MARKETING_URL=https://celestia.com
+NEXT_PUBLIC_SHOP_URL=https://shop.celestia.com
+NEXT_PUBLIC_B2B_URL=https://products.celestia.com
+COOKIE_DOMAIN=.celestia.com
 
 # 默认语言：en（英文）、ar（阿拉伯文）、zh（中文）
 NEXT_PUBLIC_DEFAULT_LOCALE=en
@@ -344,12 +383,15 @@ bash scripts/setup-server.sh
 ==============================
 
 🌐 访问地址:
-   网站首页: https://your-domain.com
-   管理后台: https://your-domain.com/admin/login
+   官网:       https://celestia.com/en
+   2C 商城:    https://shop.celestia.com/en
+   2C 后台:    https://shop.celestia.com/shop-admin/login
+   2B 后台:    https://products.celestia.com/admin/login
+   2B 客户端:  https://products.celestia.com/en/storefront
 
 👤 默认管理员账号:
-   手机号: 13800000001
-   密码: admin123
+   2B: 13800000001 / admin123
+   2C: 见 .env.production 中 SHOP_ADMIN_PHONE / SHOP_ADMIN_PASSWORD
 
 📚 常用命令:
    查看日志: docker compose -f docker-compose.prod.yml logs -f
@@ -399,17 +441,27 @@ docker compose -f docker-compose.prod.yml logs -f nginx
 
 ### 8.3 访问网站
 
-在浏览器中访问：
+在浏览器中验证三子域：
 
-- **网站首页**：`https://your-domain.com`
-- **管理后台**：`https://your-domain.com/admin/login`
+- **官网**：`https://celestia.com/en`
+- **2C 商城**：`https://shop.celestia.com/en`
+- **2C 后台**：`https://shop.celestia.com/shop-admin/login`
+- **2B 后台**：`https://products.celestia.com/admin/login`
+- **2B 客户端**：`https://products.celestia.com/en/storefront`
+
+或使用 `.\scripts\deploy-remote.ps1` 发布后的 HTTP 探测输出。
 
 ### 8.4 登录管理后台
 
-使用默认管理员账号登录：
+**2B 管理员**：
 
 - **手机号**：`13800000001`
 - **密码**：`admin123`
+
+**2C 管理员**（凭据配置于 `.env.production`）：
+
+- **手机号**：`SHOP_ADMIN_PHONE`
+- **密码**：`SHOP_ADMIN_PASSWORD`
 
 **⚠️ 重要：首次登录后请立即修改默认密码！**
 
@@ -776,6 +828,6 @@ docker compose -f docker-compose.prod.yml exec -T db pg_restore -U celestia -d c
 
 ---
 
-**文档版本**：v1.0  
+**文档版本**：v1.1  
 **适用系统**：Alibaba Cloud Linux 3.2104 LTS 64位  
-**最后更新**：2026-04-02
+**最后更新**：2026-07-18

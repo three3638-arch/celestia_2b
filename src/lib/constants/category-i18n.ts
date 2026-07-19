@@ -9,6 +9,7 @@ export const CANONICAL_CATEGORY_I18N: Record<
   项链: { nameEn: 'Necklace', nameAr: 'عقد' },
   手链: { nameEn: 'Bracelet', nameAr: 'سوار' },
   戒指: { nameEn: 'Ring', nameAr: 'خاتم' },
+  套装: { nameEn: 'Set', nameAr: 'طقم' },
 }
 
 export function getCanonicalCategoryI18n(nameZh: string) {

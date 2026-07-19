@@ -290,5 +290,96 @@
     "selectOrCreateGroup": "Select existing group or create new",
     "batchSetGroup": "Batch Set Group",
     "selectedProducts": "{count} products selected"
+  },
+  "marketing": {
+    "nav": {
+      "home": "Home",
+      "about": "About",
+      "services": "Services",
+      "contact": "Contact",
+      "shop": "Shop"
+    },
+    "footer": { "rights": "All rights reserved." },
+    "home": {
+      "eyebrow": "Fine Jewelry",
+      "title": "Celestia — Crafted for Every Moment",
+      "subtitle": "Discover exquisite moissanite and fine jewelry, blending timeless elegance with modern design.",
+      "ctaShop": "Browse Collection",
+      "ctaContact": "Contact Us",
+      "features": {
+        "craft": { "title": "Expert Craftsmanship", "desc": "Each piece is carefully designed and finished to the highest standards." },
+        "quality": { "title": "Premium Materials", "desc": "Moissanite and precious metals selected for brilliance and durability." },
+        "service": { "title": "Dedicated Service", "desc": "From inquiry to delivery, our team is here to assist you." }
+      }
+    },
+    "about": {
+      "title": "About Celestia",
+      "p1": "Celestia is a jewelry brand dedicated to bringing exceptional craftsmanship and accessible luxury to customers worldwide.",
+      "p2": "We combine traditional artistry with modern e-commerce to serve both retail customers and wholesale partners."
+    },
+    "services": {
+      "title": "Our Services",
+      "description": "Whether you are shopping for yourself or sourcing for your business, Celestia offers tailored solutions.",
+      "shopLink": "Explore our retail collection",
+      "items": {
+        "retail": { "title": "Retail Collection", "desc": "Browse our curated catalog with transparent pricing." },
+        "custom": { "title": "Custom Orders", "desc": "Contact us for bespoke designs and special requests." },
+        "wholesale": { "title": "Wholesale (B2B)", "desc": "Partner with us for bulk orders and dedicated pricing." }
+      }
+    },
+    "contact": {
+      "title": "Contact Us",
+      "description": "We would love to hear from you. Reach out for product inquiries, partnerships, or support.",
+      "infoTitle": "Contact Information",
+      "formTitle": "Send a Message",
+      "emailLabel": "Email",
+      "phoneLabel": "Phone",
+      "hoursLabel": "Business Hours",
+      "hours": "Sun – Thu, 9:00 AM – 6:00 PM (GMT+3)",
+      "formName": "Name",
+      "formEmail": "Email",
+      "formPhone": "Phone (optional)",
+      "formMessage": "Message",
+      "formSubmit": "Send Message",
+      "formSuccess": "Thank you! We will get back to you soon.",
+      "formError": "Failed to send. Please try again.",
+      "captchaRequired": "Please complete the security check."
+    }
+  },
+  "shop": {
+    "nav": { "catalog": "Catalog", "inquiry": "Inquiry" },
+    "catalog": {
+      "title": "Collection",
+      "allCategories": "All",
+      "sortNewest": "Newest",
+      "sortPriceAsc": "Price: Low to High",
+      "sortPriceDesc": "Price: High to Low",
+      "onSale": "On Sale",
+      "empty": "No products found",
+      "from": "From",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "pageInfo": "Page {page} of {total}"
+    },
+    "product": {
+      "selectVariant": "Select option",
+      "inquiry": "Request Quote",
+      "outOfStock": "Out of Stock",
+      "saleEnds": "Sale ends in",
+      "description": "Description"
+    },
+    "inquiry": {
+      "title": "Product Inquiry",
+      "name": "Your Name",
+      "phone": "Phone",
+      "email": "Email (optional)",
+      "message": "Message",
+      "submit": "Submit Inquiry",
+      "success": "Thank you! We will contact you soon.",
+      "error": "Failed to submit. Please try again.",
+      "invalidProduct": "Invalid product. Please open inquiry from a product page.",
+      "captchaRequired": "Please complete the security check."
+    },
+    "price": { "save": "Save {percent}%" }
   }
 }

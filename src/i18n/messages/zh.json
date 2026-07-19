@@ -290,5 +290,96 @@
     "selectOrCreateGroup": "选择已有分组或新建",
     "batchSetGroup": "批量设置分组",
     "selectedProducts": "已选择 {count} 个商品"
+  },
+  "marketing": {
+    "nav": {
+      "home": "首页",
+      "about": "关于我们",
+      "services": "产品服务",
+      "contact": "联系我们",
+      "shop": "精品商城"
+    },
+    "footer": { "rights": "版权所有" },
+    "home": {
+      "eyebrow": "精品珠宝",
+      "title": "Celestia — 为每个时刻匠心打造",
+      "subtitle": "探索莫桑石与精品珠宝，融合经典优雅与现代设计。",
+      "ctaShop": "浏览系列",
+      "ctaContact": "联系我们",
+      "features": {
+        "craft": { "title": "精湛工艺", "desc": "每件作品均经精心设计与打磨，品质卓越。" },
+        "quality": { "title": "优质材质", "desc": "精选莫桑石与贵金属，璀璨持久。" },
+        "service": { "title": "贴心服务", "desc": "从咨询到交付，全程为您提供专业支持。" }
+      }
+    },
+    "about": {
+      "title": "关于 Celestia",
+      "p1": "Celestia 致力于将精湛工艺与触手可及的品质带给全球客户。",
+      "p2": "我们融合传统匠心与现代电商，服务零售客户与批发合作伙伴。"
+    },
+    "services": {
+      "title": "产品与服务",
+      "description": "无论个人选购还是商业采购，Celestia 都能提供专属方案。",
+      "shopLink": "浏览零售精品系列",
+      "items": {
+        "retail": { "title": "零售系列", "desc": "浏览精选目录，价格透明。" },
+        "custom": { "title": "定制订单", "desc": "联系我们，获取专属设计与定制服务。" },
+        "wholesale": { "title": "批发合作 (2B)", "desc": "批量采购与专属报价，欢迎合作伙伴。" }
+      }
+    },
+    "contact": {
+      "title": "联系我们",
+      "description": "欢迎咨询产品、合作或售后事宜。",
+      "infoTitle": "联系方式",
+      "formTitle": "发送留言",
+      "emailLabel": "邮箱",
+      "phoneLabel": "电话",
+      "hoursLabel": "营业时间",
+      "hours": "周日 – 周四，9:00 – 18:00 (GMT+3)",
+      "formName": "姓名",
+      "formEmail": "邮箱",
+      "formPhone": "电话（选填）",
+      "formMessage": "留言",
+      "formSubmit": "发送",
+      "formSuccess": "感谢留言，我们会尽快回复。",
+      "formError": "发送失败，请重试。",
+      "captchaRequired": "请完成人机验证。"
+    }
+  },
+  "shop": {
+    "nav": { "catalog": "商品目录", "inquiry": "询价" },
+    "catalog": {
+      "title": "精品系列",
+      "allCategories": "全部",
+      "sortNewest": "最新",
+      "sortPriceAsc": "价格从低到高",
+      "sortPriceDesc": "价格从高到低",
+      "onSale": "促销中",
+      "empty": "暂无商品",
+      "from": "起",
+      "prevPage": "上一页",
+      "nextPage": "下一页",
+      "pageInfo": "第 {page} / {total} 页"
+    },
+    "product": {
+      "selectVariant": "选择规格",
+      "inquiry": "立即询价",
+      "outOfStock": "缺货",
+      "saleEnds": "促销截止",
+      "description": "商品描述"
+    },
+    "inquiry": {
+      "title": "商品询价",
+      "name": "姓名",
+      "phone": "手机号",
+      "email": "邮箱（选填）",
+      "message": "留言",
+      "submit": "提交询价",
+      "success": "提交成功，我们将尽快与您联系！",
+      "error": "提交失败，请重试",
+      "invalidProduct": "无效商品，请从商品详情页发起询价。",
+      "captchaRequired": "请完成人机验证。"
+    },
+    "price": { "save": "省 {percent}%" }
   }
 }

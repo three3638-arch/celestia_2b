@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  lint-and-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: celestia
+          POSTGRES_PASSWORD: celestia
+          POSTGRES_DB: celestia
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U celestia -d celestia"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://celestia:celestia@localhost:5432/celestia
+      JWT_SECRET: ci-jwt-secret-must-be-at-least-32-chars
+      SHOP_JWT_SECRET: ci-shop-jwt-secret-different-from-jwt
+      NODE_ENV: test
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate deploy
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

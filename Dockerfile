@@ -46,6 +46,22 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# NEXT_PUBLIC_* 必须在 build 阶段注入（客户端组件 build-time 内联）
+ARG NEXT_PUBLIC_BASE_URL
+ARG NEXT_PUBLIC_MARKETING_URL
+ARG NEXT_PUBLIC_SHOP_URL
+ARG NEXT_PUBLIC_B2B_URL
+ARG NEXT_PUBLIC_DEFAULT_LOCALE=en
+ARG NEXT_PUBLIC_CURRENCY=SAR
+ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY=
+ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL
+ENV NEXT_PUBLIC_MARKETING_URL=$NEXT_PUBLIC_MARKETING_URL
+ENV NEXT_PUBLIC_SHOP_URL=$NEXT_PUBLIC_SHOP_URL
+ENV NEXT_PUBLIC_B2B_URL=$NEXT_PUBLIC_B2B_URL
+ENV NEXT_PUBLIC_DEFAULT_LOCALE=$NEXT_PUBLIC_DEFAULT_LOCALE
+ENV NEXT_PUBLIC_CURRENCY=$NEXT_PUBLIC_CURRENCY
+ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY
+
 # 重新生成 Prisma Client（确保与构建环境兼容）
 RUN npx prisma generate
 
@@ -56,7 +72,7 @@ RUN --mount=type=cache,target=/app/.next/cache \
 # 独立阶段：仅安装 prisma CLI 及其依赖（供 migrate deploy），避免运行镜像内 npx 每次下载
 FROM node:22-alpine AS prisma-tools
 WORKDIR /tools
-RUN echo '{"dependencies":{"prisma":"7.6.0"}}' > package.json \
+RUN echo '{"dependencies":{"prisma":"7.8.0"}}' > package.json \
   && npm config set registry https://registry.npmmirror.com \
   && npm install --omit=dev \
   && npm cache clean --force
@@ -69,6 +85,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 # Prisma CLI（migrate deploy）；置于 PATH 前部，exec 内可直接执行 prisma
 ENV PATH="/app/.prisma-cli/node_modules/.bin:${PATH}"
+ENV NODE_PATH="/app/.prisma-cli/node_modules"
 
 # 创建非 root 用户
 RUN addgroup --system --gid 1001 nodejs
@@ -82,8 +99,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # 创建上传目录并授权
 RUN mkdir -p /app/public/uploads && chown -R nextjs:nodejs /app/public
 
-# 复制 Prisma schema 和 migrations（用于运行时迁移）
+# 复制 Prisma schema、migrations 和 config（用于运行时迁移）
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 # 复制 node_modules 中的必要依赖（Prisma 引擎等）
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma

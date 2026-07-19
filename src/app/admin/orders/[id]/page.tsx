@@ -451,7 +451,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   {[...order.items].sort((a, b) => {
                     if (a.itemStatus === 'CUSTOMER_REMOVED' && b.itemStatus !== 'CUSTOMER_REMOVED') return 1;
                     if (a.itemStatus !== 'CUSTOMER_REMOVED' && b.itemStatus === 'CUSTOMER_REMOVED') return -1;
-                    return 0;
+                    return (a.productNameSnapshot || '').localeCompare(b.productNameSnapshot || '');
                   }).map((item) => {
                     // 结算后使用结算数据，否则使用报价数据
                     const displayQty = hasSettlement && item.settlementQty !== null 

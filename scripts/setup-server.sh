@@ -65,6 +65,37 @@ else
     echo -e "${GREEN}   ✅ .env.production 文件已存在${NC}"
 fi
 
+if ! grep -q '^SHOP_JWT_SECRET=.\+' .env.production 2>/dev/null; then
+    echo -e "${RED}❌ .env.production 缺少 SHOP_JWT_SECRET（须与 JWT_SECRET 不同）${NC}"
+    exit 1
+fi
+if ! grep -q '^SHOP_ADMIN_PHONE=.\+' .env.production 2>/dev/null; then
+    echo -e "${RED}❌ .env.production 缺少 SHOP_ADMIN_PHONE${NC}"
+    exit 1
+fi
+if ! grep -q '^SHOP_ADMIN_PASSWORD=.\+' .env.production 2>/dev/null; then
+    echo -e "${RED}❌ .env.production 缺少 SHOP_ADMIN_PASSWORD${NC}"
+    exit 1
+fi
+if ! grep -q '^JWT_SECRET=.\+' .env.production 2>/dev/null; then
+    echo -e "${RED}❌ .env.production 缺少 JWT_SECRET${NC}"
+    exit 1
+fi
+for key in NEXT_PUBLIC_MARKETING_URL NEXT_PUBLIC_SHOP_URL NEXT_PUBLIC_B2B_URL; do
+    if ! grep -q "^${key}=.\+" .env.production 2>/dev/null; then
+        echo -e "${RED}❌ .env.production 缺少 ${key}（Docker 构建须注入）${NC}"
+        exit 1
+    fi
+done
+
+JWT_VAL=$(grep '^JWT_SECRET=' .env.production | cut -d= -f2- | tr -d '"' | tr -d "'")
+SHOP_JWT_VAL=$(grep '^SHOP_JWT_SECRET=' .env.production | cut -d= -f2- | tr -d '"' | tr -d "'")
+if [ "$JWT_VAL" = "$SHOP_JWT_VAL" ]; then
+    echo -e "${RED}❌ SHOP_JWT_SECRET 不能与 JWT_SECRET 相同${NC}"
+    exit 1
+fi
+echo -e "${GREEN}   ✅ 2C / 多站点必填环境变量已校验${NC}"
+
 # 3. 检查 SSL 证书
 echo ""
 echo -e "${YELLOW}📋 步骤 3/9: 检查 SSL 证书...${NC}"
@@ -178,8 +209,12 @@ main()
   .finally(() => prisma.$disconnect());
 EOF
 
-docker compose -f docker-compose.prod.yml exec app node /tmp/seed-admin.js 2>/dev/null || echo -e "${YELLOW}   ⚠️  管理员创建跳过（可能已存在）${NC}"
-echo -e "${GREEN}   ✅ 管理员账号检查完成${NC}"
+docker compose -f docker-compose.prod.yml exec app node /tmp/seed-admin.js 2>/dev/null || echo -e "${YELLOW}   ⚠️  2B 管理员创建跳过（可能已存在）${NC}"
+echo -e "${GREEN}   ✅ 2B 管理员账号检查完成${NC}"
+
+echo ""
+echo -e "${YELLOW}📋 步骤 8b/9: 创建 2C 管理员账号...${NC}"
+docker compose -f docker-compose.prod.yml exec -T app npx tsx scripts/seed-shop-admin.ts 2>/dev/null || echo -e "${YELLOW}   ⚠️  2C 管理员创建跳过（可能已存在）${NC}"
 
 # 9. 验证部署
 echo ""
@@ -206,8 +241,9 @@ else
     echo -e "${RED}   ❌ Nginx 容器未运行${NC}"
 fi
 
-# 获取域名
-base_url=$(grep NEXT_PUBLIC_BASE_URL .env.production | cut -d'=' -f2 | tr -d '"' || echo "your-domain.com")
+marketing_url=$(grep NEXT_PUBLIC_MARKETING_URL .env.production | cut -d'=' -f2 | tr -d '"' || echo "https://celestia.com")
+shop_url=$(grep NEXT_PUBLIC_SHOP_URL .env.production | cut -d'=' -f2 | tr -d '"' || echo "https://shop.celestia.com")
+b2b_url=$(grep NEXT_PUBLIC_B2B_URL .env.production | cut -d'=' -f2 | tr -d '"' || echo "https://products.celestia.com")
 
 echo ""
 echo "=============================="
@@ -215,12 +251,14 @@ echo -e "${GREEN}✅ 部署完成！${NC}"
 echo "=============================="
 echo ""
 echo -e "${CYAN}🌐 访问地址:${NC}"
-echo -e "   网站首页: ${base_url}"
-echo -e "   管理后台: ${base_url}/admin/login"
+echo -e "   官网:       ${marketing_url}/en"
+echo -e "   2C 商城:    ${shop_url}/en"
+echo -e "   2C 后台:    ${shop_url}/shop-admin/login"
+echo -e "   2B 后台:    ${b2b_url}/admin/login"
+echo -e "   2B 客户端:  ${b2b_url}/en/storefront"
 echo ""
-echo -e "${CYAN}👤 默认管理员账号:${NC}"
-echo -e "   手机号: 13800000001"
-echo -e "   密码: admin123"
+echo -e "${CYAN}👤 2C 管理员:${NC}"
+echo -e "   见 .env.production 中 SHOP_ADMIN_PHONE / SHOP_ADMIN_PASSWORD"
 echo ""
 echo -e "${CYAN}📚 常用命令:${NC}"
 echo -e "   查看日志: docker compose -f docker-compose.prod.yml logs -f"

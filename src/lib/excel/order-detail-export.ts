@@ -78,7 +78,7 @@ export async function generateOrderDetailExcel(order: OrderForExport): Promise<U
   const worksheet = workbook.addWorksheet(`订单明细-${order.orderNo}`)
 
   // 第1行：标题
-  worksheet.mergeCells('A1:F1')
+  worksheet.mergeCells('A1:G1')
   const titleCell = worksheet.getCell('A1')
   titleCell.value = '订单明细'
   titleCell.font = { bold: true, size: 16 }
@@ -86,7 +86,7 @@ export async function generateOrderDetailExcel(order: OrderForExport): Promise<U
   worksheet.getRow(1).height = 30
 
   // 第2行：订单号
-  worksheet.mergeCells('A2:F2')
+  worksheet.mergeCells('A2:G2')
   const orderNoCell = worksheet.getCell('A2')
   orderNoCell.value = `订单号：${order.orderNo}`
   orderNoCell.alignment = { horizontal: 'center', vertical: 'middle' }
@@ -95,7 +95,7 @@ export async function generateOrderDetailExcel(order: OrderForExport): Promise<U
   // 第3行：空行
 
   // 第4行：表头
-  const headers = ['SPU编码', 'SKU编码', '图片', '数量', '客户单价(SAR)', '合计(SAR)']
+  const headers = ['SPU编码', 'SKU编码', '图片', '数量', '客户单价(SAR)', '合计(SAR)', '备注']
   const headerRow = worksheet.getRow(4)
   headers.forEach((header, index) => {
     const cell = headerRow.getCell(index + 1)
@@ -117,11 +117,12 @@ export async function generateOrderDetailExcel(order: OrderForExport): Promise<U
   worksheet.getColumn(4).width = 10   // 数量
   worksheet.getColumn(5).width = 16   // 客户单价(SAR)
   worksheet.getColumn(6).width = 16   // 合计(SAR)
+  worksheet.getColumn(7).width = 12   // 备注
 
-  // 过滤订单项：排除 CUSTOMER_REMOVED 和 OUT_OF_STOCK
-  const filteredItems = order.items.filter(
-    (item) => item.itemStatus !== 'CUSTOMER_REMOVED' && item.itemStatus !== 'OUT_OF_STOCK'
-  )
+  // 过滤订单项：排除 CUSTOMER_REMOVED，保留 OUT_OF_STOCK 并在备注中标注；按商品名正序排序
+  const filteredItems = order.items
+    .filter((item) => item.itemStatus !== 'CUSTOMER_REMOVED')
+    .sort((a, b) => (a.productNameSnapshot || '').localeCompare(b.productNameSnapshot || ''))
 
   // 数据行
   let totalQty = 0
@@ -190,12 +191,18 @@ export async function generateOrderDetailExcel(order: OrderForExport): Promise<U
     row.getCell(5).numFmt = '#,##0.00'
     row.getCell(6).numFmt = '#,##0.00'
 
+    // 备注：缺货商品标注“缺货”
+    if (item.itemStatus === 'OUT_OF_STOCK') {
+      row.getCell(7).value = '缺货'
+    }
+
     // 居中对齐
     row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
     row.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' }
     row.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' }
     row.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' }
     row.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' }
+    row.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' }
 
     // 插入图片
     const imageBuffer = imageDataMap.get(i)
@@ -253,6 +260,7 @@ export async function getOrderForExport(orderId: string) {
             },
           },
         },
+        orderBy: { productNameSnapshot: 'asc' },
       },
     },
   })

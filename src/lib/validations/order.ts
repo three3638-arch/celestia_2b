@@ -16,6 +16,7 @@ export const submitQuoteSchema = z.object({
     orderItemId: z.string(),
     unitPriceCny: z.string().refine(v => parseFloat(v) >= 0, 'Price must be non-negative'),
     unitPriceSar: z.string().refine(v => parseFloat(v) >= 0, 'Price must be non-negative').optional(), // 手动客户单价
+    outOfStock: z.boolean().optional().default(false),
   })),
   overrideTotalSar: z.string().optional(),
 })

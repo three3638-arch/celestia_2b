@@ -161,15 +161,22 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "   ✅ 数据库表结构初始化完成" -ForegroundColor Green
 
-# 8. 创建管理员账号
+# 9. 创建管理员账号
 Write-Host ""
-Write-Host "📋 步骤 8/9: 创建管理员账号..." -ForegroundColor Yellow
+Write-Host "📋 步骤 8/10: 创建 2B 管理员账号..." -ForegroundColor Yellow
 npx tsx scripts/seed-admin.ts
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "⚠️  管理员账号创建失败（可能已存在）" -ForegroundColor Yellow
+    Write-Host "⚠️  2B 管理员账号创建失败（可能已存在）" -ForegroundColor Yellow
 }
 
-# 9. 完成
+Write-Host ""
+Write-Host "📋 步骤 9/10: 创建 2C 管理员账号..." -ForegroundColor Yellow
+npx tsx scripts/seed-shop-admin.ts
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "⚠️  2C 管理员账号创建失败（可能已存在）" -ForegroundColor Yellow
+}
+
+# 10. 完成
 Write-Host ""
 Write-Host "================================" -ForegroundColor Green
 Write-Host "✅ 环境准备完成！" -ForegroundColor Green
@@ -178,13 +185,13 @@ Write-Host ""
 Write-Host "📝 下一步操作:" -ForegroundColor Cyan
 Write-Host "   运行: npm run dev" -ForegroundColor White
 Write-Host ""
-Write-Host "🔗 访问地址:" -ForegroundColor Cyan
-Write-Host "   管理后台: http://localhost:3000/admin/login" -ForegroundColor White
-Write-Host "   客户端(英文): http://localhost:3000/en/storefront" -ForegroundColor White
-Write-Host "   客户端(阿拉伯文): http://localhost:3000/ar/storefront" -ForegroundColor White
-Write-Host "   客户端(中文): http://localhost:3000/zh/storefront" -ForegroundColor White
+Write-Host "🔗 本地访问地址:" -ForegroundColor Cyan
+Write-Host "   官网首页:     http://localhost:3000/en" -ForegroundColor White
+Write-Host "   2C 商品目录:  http://localhost:3000/en/shop" -ForegroundColor White
+Write-Host "   2C 管理后台:  http://localhost:3000/shop-admin/login" -ForegroundColor White
+Write-Host "   2B 管理后台:  http://localhost:3000/admin/login" -ForegroundColor White
+Write-Host "   2B 客户端:    http://localhost:3000/en/storefront" -ForegroundColor White
 Write-Host ""
-Write-Host "👤 默认管理员账号:" -ForegroundColor Cyan
-Write-Host "   手机号: 13800000001" -ForegroundColor White
-Write-Host "   密码: admin123" -ForegroundColor White
+Write-Host "👤 2B 管理员: 见 seed-admin.ts 配置的手机号 / admin123" -ForegroundColor Cyan
+Write-Host "👤 2C 管理员:  见 .env 中 SHOP_ADMIN_PHONE / SHOP_ADMIN_PASSWORD，或 seed 脚本输出" -ForegroundColor Cyan
 Write-Host ""

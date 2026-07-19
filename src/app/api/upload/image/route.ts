@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { processImage } from '@/lib/image'
-import { uploadToR2, generateFileKey } from '@/lib/r2'
+import { uploadToR2, generateB2bImageKey } from '@/lib/r2'
 import type { ApiResponse } from '@/types'
 
 // 允许的图片类型
@@ -75,7 +75,7 @@ export async function POST(
     const processed = await processImage(buffer)
 
     // 6. 生成文件 key
-    const baseKey = generateFileKey('products', 'webp')
+    const baseKey = generateB2bImageKey('webp')
     const thumbnailKey = baseKey.replace('.webp', '_thumb.webp')
 
     // 7. 上传原图和缩略图到 R2

@@ -1,8 +1,10 @@
 # Celestia Jewelry - B2B 外贸电商平台技术设计文档
 
-> 版本: v1.0 | 最后更新: 2026-03-28 | 状态: **已确认**
+> 版本: v1.0 | 最后更新: 2026-07-18 | 状态: **已确认**
 > 
-> 关联文档：[业务蓝图 v1.2](./business-blueprint.md)
+> 关联文档：[业务蓝图 v1.2](./business-blueprint.md) · [2C 商城实现说明](./shop-platform.md)
+>
+> **方案增量（审计备注）**：官网联系表单 `ContactSubmission` 为 v1.1 合理扩展，详见 [shop-platform.md § ContactSubmission](./shop-platform.md#方案外扩展contactsubmission)。
 
 ---
 

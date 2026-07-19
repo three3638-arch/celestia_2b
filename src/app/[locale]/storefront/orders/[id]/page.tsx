@@ -448,9 +448,9 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   }
 
   const currentStatusIndex = getCurrentStatusIndex();
-  const activeItems = order.items.filter(
-    (item) => item.itemStatus !== "CUSTOMER_REMOVED"
-  );
+  const activeItems = order.items
+    .filter((item) => item.itemStatus !== "CUSTOMER_REMOVED")
+    .sort((a, b) => (a.productNameSnapshot || '').localeCompare(b.productNameSnapshot || ''));
 
   return (
     <div className="min-h-screen pb-8">
